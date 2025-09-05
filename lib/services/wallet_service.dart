@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:web3dart/web3dart.dart'; // ADDED: provides EtherUnit and EtherAmount
 import '../models/tourist_record.dart';
 import 'blockchain_service.dart';
 

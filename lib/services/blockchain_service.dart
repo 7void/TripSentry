@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 import 'package:web3dart/web3dart.dart';
+import 'package:convert/convert.dart' as convert; // ADDED: provides hex.decode
 import '../models/tourist_record.dart';
 
 class BlockchainService {
@@ -102,7 +103,7 @@ class BlockchainService {
         function: _mintTouristID,
         parameters: [
           EthereumAddress.fromHex(touristAddress),
-          Uint8List.fromList(hex.decode(touristIdHash.substring(2))), // Remove 0x prefix
+          Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2))), // Remove 0x prefix
           BigInt.from(validUntil.millisecondsSinceEpoch ~/ 1000), // Convert to seconds
           metadataCID,
         ],
@@ -147,7 +148,7 @@ class BlockchainService {
       final result = await _client.call(
         contract: _contract,
         function: _getTokenIdByTouristHash,
-        params: [Uint8List.fromList(hex.decode(touristIdHash.substring(2)))],
+        params: [Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2)))],
       );
 
       if (result.isNotEmpty) {
