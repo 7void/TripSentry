@@ -1,0 +1,52 @@
+name: tourist_safety_app
+description: Smart Tourist Safety Monitoring System
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Blockchain dependencies
+  web3dart: ^2.7.3
+  http: ^1.1.0
+  
+  # Crypto and security
+  crypto: ^3.0.3
+  pointycastle: ^3.7.3
+  
+  # State management
+  provider: ^6.1.1
+  
+  # UI dependencies
+  cupertino_icons: ^1.0.6
+  
+  # Storage
+  shared_preferences: ^2.2.2
+  
+  # QR Code
+  qr_flutter: ^4.1.0
+  qr_code_scanner: ^1.0.1
+  
+  # Permission handling
+  permission_handler: ^11.1.0
+  
+  # Location services
+  geolocator: ^10.1.0
+  
+  # Notifications
+  flutter_local_notifications: ^16.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/
+    - assets/contracts/
