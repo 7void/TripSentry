@@ -5,16 +5,20 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 import 'package:web3dart/web3dart.dart';
-import 'package:convert/convert.dart' as convert; // ADDED: provides hex.decode
+import 'package:convert/convert.dart' as convert;
 import '../models/tourist_record.dart';
 
 class BlockchainService {
-  static const String _rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/-RGNirb5XtTS_mKCFbeMY'; // Replace with your Sepolia RPC URL
-  static const String _contractAddress = '0x92d4b424a2dd5f513982929b3353be196b043879'; // Replace with deployed contract address
-  static const int _chainId = 11155111; // Ethereum Sepolia testnet
-  
+  static const String _rpcUrl =
+      'https://eth-sepolia.g.alchemy.com/v2/-RGNirb5XtTS_mKCFbeMY';
+  static const String _contractAddress =
+      '0x8d95bbd64547caf83bfa6af67b522ec6d1450a85';
+  static const int _chainId = 11155111;
+
   late Web3Client _client;
   late DeployedContract _contract;
+
+  // Existing functions
   late ContractFunction _mintTouristID;
   late ContractFunction _getTouristRecord;
   late ContractFunction _updateMetadata;
@@ -25,6 +29,19 @@ class BlockchainService {
   late ContractFunction _totalActiveIDs;
   late ContractFunction _balanceOf;
   late ContractFunction _ownerOf;
+  late ContractFunction _forceDeleteTouristID;
+  late ContractFunction _batchDeleteExpired;
+
+  // New functions for enhanced contract
+  late ContractFunction _getTouristOf;
+  late ContractFunction _getTokenOfTourist;
+  late ContractFunction _getAllTokenIds;
+  late ContractFunction _getAllActiveTouristIDs;
+  late ContractFunction _getAllTouristData;
+  late ContractFunction _setCentralWallet;
+
+  // Contract state variables
+  late ContractFunction _centralWallet;
 
   static final BlockchainService _instance = BlockchainService._internal();
   factory BlockchainService() => _instance;
@@ -37,14 +54,16 @@ class BlockchainService {
 
   Future<void> _loadContract() async {
     try {
-      final abiString = await rootBundle.loadString('assets/contracts/TouristID.json');
+      final abiString =
+          await rootBundle.loadString('assets/contracts/TouristID.json');
       final abi = jsonDecode(abiString) as List<dynamic>;
-      
+
       _contract = DeployedContract(
         ContractAbi.fromJson(jsonEncode(abi), 'TouristID'),
         EthereumAddress.fromHex(_contractAddress),
       );
 
+      // Existing functions
       _mintTouristID = _contract.function('mintTouristID');
       _getTouristRecord = _contract.function('getTouristRecord');
       _updateMetadata = _contract.function('updateMetadata');
@@ -55,11 +74,26 @@ class BlockchainService {
       _totalActiveIDs = _contract.function('totalActiveIDs');
       _balanceOf = _contract.function('balanceOf');
       _ownerOf = _contract.function('ownerOf');
-      
-      print('Contract loaded successfully');
+      _forceDeleteTouristID = _contract.function('forceDeleteTouristID');
+      _batchDeleteExpired = _contract.function('batchDeleteExpired');
+
+      // New functions for enhanced contract
+      _getTouristOf = _contract.function('getTouristOf');
+      _getTokenOfTourist = _contract.function('getTokenOfTourist');
+      _getAllTokenIds = _contract.function('getAllTokenIds');
+      _getAllActiveTouristIDs = _contract.function('getAllActiveTouristIDs');
+      _getAllTouristData = _contract.function('getAllTouristData');
+      _setCentralWallet = _contract.function('setCentralWallet');
+
+      // State variables
+      _centralWallet = _contract.function('centralWallet');
+
+      print('Enhanced contract loaded successfully');
     } catch (e) {
       print('Error loading contract: $e');
-      throw Exception('Failed to load contract: $e');
+      // Don't throw exception, just log the error and continue
+      print(
+          'Contract loading failed, but continuing without blockchain functionality');
     }
   }
 
@@ -67,7 +101,7 @@ class BlockchainService {
   WalletInfo generateWallet() {
     final random = Random.secure();
     final credentials = EthPrivateKey.createRandom(random);
-    
+
     return WalletInfo(
       address: credentials.address.hex,
       privateKey: credentials.privateKeyInt.toRadixString(16),
@@ -87,25 +121,27 @@ class BlockchainService {
     return '0x${digest.toString()}';
   }
 
-  // Mint a new Tourist ID NFT
+  // Updated mint function with issuerInfo parameter
   Future<String> mintTouristID({
     required String touristAddress,
     required String touristIdHash,
     required DateTime validUntil,
     required String metadataCID,
     required String ownerPrivateKey,
+    String issuerInfo = 'Government Tourism Authority', // Default issuer info
   }) async {
     try {
       final credentials = _getCredentials(ownerPrivateKey);
-      
+
       final transaction = Transaction.callContract(
         contract: _contract,
         function: _mintTouristID,
         parameters: [
           EthereumAddress.fromHex(touristAddress),
-          Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2))), // Remove 0x prefix
-          BigInt.from(validUntil.millisecondsSinceEpoch ~/ 1000), // Convert to seconds
+          Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2))),
+          BigInt.from(validUntil.millisecondsSinceEpoch ~/ 1000),
           metadataCID,
+          issuerInfo, // New parameter
         ],
         maxGas: 500000,
       );
@@ -142,13 +178,195 @@ class BlockchainService {
     }
   }
 
+  // Get tourist address associated with a token ID
+  Future<String?> getTouristOf(int tokenId) async {
+    try {
+      final result = await _client.call(
+        contract: _contract,
+        function: _getTouristOf,
+        params: [BigInt.from(tokenId)],
+      );
+
+      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
+    } catch (e) {
+      print('Error getting tourist of token: $e');
+      return null;
+    }
+  }
+
+  // Get token ID associated with a tourist address
+  Future<int?> getTokenOfTourist(String touristAddress) async {
+    try {
+      final result = await _client.call(
+        contract: _contract,
+        function: _getTokenOfTourist,
+        params: [EthereumAddress.fromHex(touristAddress)],
+      );
+
+      return result.isNotEmpty ? (result[0] as BigInt).toInt() : null;
+    } catch (e) {
+      print('Error getting token of tourist: $e');
+      return null;
+    }
+  }
+
+  // Get all token IDs in the system
+  Future<List<int>> getAllTokenIds() async {
+    try {
+      final result = await _client.call(
+        contract: _contract,
+        function: _getAllTokenIds,
+        params: [],
+      );
+
+      if (result.isNotEmpty) {
+        final tokenIds = result[0] as List<dynamic>;
+        return tokenIds.map((id) => (id as BigInt).toInt()).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error getting all token IDs: $e');
+      return [];
+    }
+  }
+
+  // Get all active tourist IDs with their associated addresses
+  Future<Map<int, String>> getAllActiveTouristIDs() async {
+    try {
+      final result = await _client.call(
+        contract: _contract,
+        function: _getAllActiveTouristIDs,
+        params: [],
+      );
+
+      if (result.isNotEmpty && result.length >= 2) {
+        final tokenIds = result[0] as List<dynamic>;
+        final tourists = result[1] as List<dynamic>;
+
+        Map<int, String> activeIDs = {};
+        for (int i = 0; i < tokenIds.length; i++) {
+          final tokenId = (tokenIds[i] as BigInt).toInt();
+          final touristAddress = (tourists[i] as EthereumAddress).hex;
+          activeIDs[tokenId] = touristAddress;
+        }
+        return activeIDs;
+      }
+      return {};
+    } catch (e) {
+      print('Error getting all active tourist IDs: $e');
+      return {};
+    }
+  }
+
+  // Get central wallet address
+  Future<String?> getCentralWallet() async {
+    try {
+      final result = await _client.call(
+        contract: _contract,
+        function: _centralWallet,
+        params: [],
+      );
+
+      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
+    } catch (e) {
+      print('Error getting central wallet: $e');
+      return null;
+    }
+  }
+
+  // Set new central wallet (only contract owner)
+  Future<String> setCentralWallet({
+    required String newCentralWallet,
+    required String ownerPrivateKey,
+  }) async {
+    try {
+      final credentials = _getCredentials(ownerPrivateKey);
+
+      final transaction = Transaction.callContract(
+        contract: _contract,
+        function: _setCentralWallet,
+        parameters: [EthereumAddress.fromHex(newCentralWallet)],
+        maxGas: 300000,
+      );
+
+      final result = await _client.sendTransaction(
+        credentials,
+        transaction,
+        chainId: _chainId,
+      );
+
+      return result;
+    } catch (e) {
+      print('Error setting central wallet: $e');
+      throw Exception('Failed to set central wallet: $e');
+    }
+  }
+
+  // Force delete Tourist ID (only owner)
+  Future<String> forceDeleteTouristID({
+    required int tokenId,
+    required String ownerPrivateKey,
+  }) async {
+    try {
+      final credentials = _getCredentials(ownerPrivateKey);
+
+      final transaction = Transaction.callContract(
+        contract: _contract,
+        function: _forceDeleteTouristID,
+        parameters: [BigInt.from(tokenId)],
+        maxGas: 300000,
+      );
+
+      final result = await _client.sendTransaction(
+        credentials,
+        transaction,
+        chainId: _chainId,
+      );
+
+      return result;
+    } catch (e) {
+      print('Error force deleting Tourist ID: $e');
+      throw Exception('Failed to force delete Tourist ID: $e');
+    }
+  }
+
+  // Batch delete expired Tourist IDs
+  Future<String> batchDeleteExpired({
+    required List<int> tokenIds,
+    required String privateKey,
+  }) async {
+    try {
+      final credentials = _getCredentials(privateKey);
+
+      final transaction = Transaction.callContract(
+        contract: _contract,
+        function: _batchDeleteExpired,
+        parameters: [tokenIds.map((id) => BigInt.from(id)).toList()],
+        maxGas: 1000000, // Higher gas limit for batch operations
+      );
+
+      final result = await _client.sendTransaction(
+        credentials,
+        transaction,
+        chainId: _chainId,
+      );
+
+      return result;
+    } catch (e) {
+      print('Error batch deleting expired IDs: $e');
+      throw Exception('Failed to batch delete expired IDs: $e');
+    }
+  }
+
   // Get token ID by tourist hash
   Future<int?> getTokenIdByTouristHash(String touristIdHash) async {
     try {
       final result = await _client.call(
         contract: _contract,
         function: _getTokenIdByTouristHash,
-        params: [Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2)))],
+        params: [
+          Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2)))
+        ],
       );
 
       if (result.isNotEmpty) {
@@ -201,7 +419,7 @@ class BlockchainService {
   }) async {
     try {
       final credentials = _getCredentials(touristPrivateKey);
-      
+
       final transaction = Transaction.callContract(
         contract: _contract,
         function: _updateMetadata,
@@ -232,7 +450,7 @@ class BlockchainService {
   }) async {
     try {
       final credentials = _getCredentials(privateKey);
-      
+
       final transaction = Transaction.callContract(
         contract: _contract,
         function: _deleteExpiredTouristID,
@@ -285,7 +503,7 @@ class BlockchainService {
     }
   }
 
-  // Get owner of token
+  // Get owner of token (will always return central wallet)
   Future<String?> getOwnerOf(int tokenId) async {
     try {
       final result = await _client.call(
@@ -297,6 +515,29 @@ class BlockchainService {
       return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
     } catch (e) {
       print('Error getting owner: $e');
+      return null;
+    }
+  }
+
+  // Helper method to get comprehensive tourist info
+  Future<Map<String, dynamic>?> getCompleteTouristInfo(int tokenId) async {
+    try {
+      final record = await getTouristRecord(tokenId);
+      final tourist = await getTouristOf(tokenId);
+      final owner = await getOwnerOf(tokenId);
+      final isValid = await isValidTouristID(tokenId);
+      final isExpiredStatus = await isExpired(tokenId);
+
+      return {
+        'tokenId': tokenId,
+        'record': record,
+        'touristAddress': tourist,
+        'ownerAddress': owner, // Central wallet
+        'isValid': isValid,
+        'isExpired': isExpiredStatus,
+      };
+    } catch (e) {
+      print('Error getting complete tourist info: $e');
       return null;
     }
   }
@@ -326,14 +567,15 @@ class BlockchainService {
     try {
       TransactionReceipt? receipt;
       int attempts = 0;
-      const maxAttempts = 30; // 30 attempts with 2-second delay = 1 minute timeout
-      
+      const maxAttempts =
+          30; // 30 attempts with 2-second delay = 1 minute timeout
+
       while (receipt == null && attempts < maxAttempts) {
         await Future.delayed(const Duration(seconds: 2));
         receipt = await _client.getTransactionReceipt(txHash);
         attempts++;
       }
-      
+
       return receipt;
     } catch (e) {
       print('Error waiting for transaction receipt: $e');

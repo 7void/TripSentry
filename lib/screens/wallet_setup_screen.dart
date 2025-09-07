@@ -14,6 +14,38 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
   bool _showPrivateKey = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize blockchain services when the screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeBlockchainServices();
+    });
+  }
+
+  Future<void> _initializeBlockchainServices() async {
+    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
+    
+    try {
+      await blockchainProvider.initializeBlockchainServices();
+    } catch (e) {
+      if (!mounted) return;
+      
+      // Show initialization error to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to initialize blockchain services: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _initializeBlockchainServices,
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
@@ -57,7 +89,11 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                             ? null
                             : () => _createWallet(context, blockchainProvider),
                         child: blockchainProvider.isLoading
-                            ? const CircularProgressIndicator()
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
                             : const Text('Create Wallet'),
                       ),
                     ),
@@ -75,14 +111,35 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(Icons.error, color: Colors.red.shade600),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              blockchainProvider.errorMessage,
-                              style: TextStyle(color: Colors.red.shade600),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Error',
+                                  style: TextStyle(
+                                    color: Colors.red.shade600,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  blockchainProvider.errorMessage,
+                                  style: TextStyle(color: Colors.red.shade600),
+                                ),
+                              ],
                             ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              blockchainProvider.clearError();
+                              _initializeBlockchainServices();
+                            },
+                            child: const Text('Retry'),
                           ),
                         ],
                       ),
@@ -198,16 +255,17 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildInfoRow(context, 'Address:', blockchainProvider.shortWalletAddress),
+              _buildInfoRow(context, 'Address:', blockchainProvider.shortWalletAddress ?? 'N/A'),
               const SizedBox(height: 8),
-              _buildCopyableRow(
-                context,
-                'Private Key:',
-                _showPrivateKey
-                    ? blockchainProvider.wallet!.privateKey
-                    : '•' * 32,
-                blockchainProvider.wallet!.privateKey,
-              ),
+              if (blockchainProvider.wallet?.privateKey != null)
+                _buildCopyableRow(
+                  context,
+                  'Private Key:',
+                  _showPrivateKey
+                      ? blockchainProvider.wallet!.privateKey
+                      : '•' * 32,
+                  blockchainProvider.wallet!.privateKey,
+                ),
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: () {
@@ -322,14 +380,29 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
   }
 
   Future<void> _createWallet(BuildContext context, BlockchainProvider blockchainProvider) async {
-    await blockchainProvider.createWallet();
-    
-    if (blockchainProvider.hasError) {
+    try {
+      await blockchainProvider.createWallet();
+      
+      if (blockchainProvider.hasError) {
+        if (!context.mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create wallet: ${blockchainProvider.errorMessage}'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => _createWallet(context, blockchainProvider),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
       if (!context.mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to create wallet: ${blockchainProvider.errorMessage}'),
+          content: Text('Unexpected error: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );

@@ -8,7 +8,7 @@ class WalletService {
   static const String _walletKey = 'tourist_wallet';
   static const String _touristRecordKey = 'tourist_record';
   static const String _tokenIdKey = 'token_id';
-  
+
   static final WalletService _instance = WalletService._internal();
   factory WalletService() => _instance;
   WalletService._internal();
@@ -18,7 +18,8 @@ class WalletService {
 
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
-    await _blockchainService.initialize();
+    // Don't initialize blockchain service here to avoid circular dependency
+    // It will be initialized separately in the provider
   }
 
   // Generate and save a new wallet
@@ -125,7 +126,7 @@ class WalletService {
   }) async {
     final wallet = await getWallet();
     final tokenId = await getTokenId();
-    
+
     if (wallet != null && tokenId != null) {
       try {
         final txHash = await _blockchainService.updateMetadata(
@@ -146,17 +147,17 @@ class WalletService {
   Future<String?> deleteExpiredTouristID() async {
     final wallet = await getWallet();
     final tokenId = await getTokenId();
-    
+
     if (wallet != null && tokenId != null) {
       try {
         final txHash = await _blockchainService.deleteExpiredTouristID(
           tokenId: tokenId,
           privateKey: wallet.privateKey,
         );
-        
+
         // Clear local data after successful deletion
         await clearWallet();
-        
+
         return txHash;
       } catch (e) {
         print('Error deleting expired ID: $e');

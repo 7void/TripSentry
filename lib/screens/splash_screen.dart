@@ -17,14 +17,17 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
+    // Wait a bit for splash effect
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
 
     try {
       // Initialize blockchain services
       await blockchainProvider.initialize();
-
-      // Wait a bit for splash effect
-      await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
 

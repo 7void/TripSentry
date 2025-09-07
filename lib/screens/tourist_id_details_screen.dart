@@ -23,7 +23,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
   }
 
   Future<void> _loadMetadata() async {
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
     try {
       final metadata = await blockchainProvider.getMetadataFromIPFS();
       setState(() {
@@ -86,7 +87,7 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
       body: Consumer<BlockchainProvider>(
         builder: (context, blockchainProvider, child) {
           final record = blockchainProvider.touristRecord;
-          
+
           if (record == null) {
             return const Center(
               child: Text('No Tourist ID found'),
@@ -123,9 +124,10 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
     );
   }
 
-  Widget _buildIDCard(BuildContext context, BlockchainProvider blockchainProvider, TouristRecord record) {
+  Widget _buildIDCard(BuildContext context,
+      BlockchainProvider blockchainProvider, TouristRecord record) {
     final isExpired = record.isExpired;
-    
+
     return Card(
       elevation: 4,
       child: Container(
@@ -158,22 +160,25 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
                       children: [
                         Text(
                           'TOURIST ID',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         Text(
                           'Digital Identity Verification',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
@@ -194,7 +199,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
               const SizedBox(height: 8),
               _buildCardInfoRow('Valid Until', _formatDate(record.validUntil)),
               const SizedBox(height: 8),
-              _buildCardInfoRow('Owner', blockchainProvider.shortWalletAddress),
+              _buildCardInfoRow(
+                  'Owner', blockchainProvider.shortWalletAddress ?? 'N/A'),
               if (_metadata != null) ...[
                 const SizedBox(height: 8),
                 _buildCardInfoRow('Name', _metadata!.name),
@@ -236,7 +242,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
     );
   }
 
-  Widget _buildBlockchainInfo(BuildContext context, BlockchainProvider blockchainProvider, TouristRecord record) {
+  Widget _buildBlockchainInfo(BuildContext context,
+      BlockchainProvider blockchainProvider, TouristRecord record) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -246,29 +253,32 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
             Text(
               'Blockchain Information',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 16),
-            _buildInfoRow(context, 'Token ID:', '#${blockchainProvider.tokenId}'),
+            _buildInfoRow(
+                context, 'Token ID:', '#${blockchainProvider.tokenId}'),
             const SizedBox(height: 8),
-            _buildInfoRow(context, 'Owner Address:', blockchainProvider.walletAddress),
+            _buildInfoRow(context, 'Owner Address:',
+                blockchainProvider.walletAddress ?? 'N/A'),
             const SizedBox(height: 8),
             _buildInfoRow(context, 'Tourist ID Hash:', record.touristIdHash),
             const SizedBox(height: 8),
             _buildInfoRow(context, 'Metadata CID:', record.metadataCID),
             const SizedBox(height: 8),
-            _buildInfoRow(context, 'Status:', record.isActive ? 'Active' : 'Inactive'),
-            const SizedBox(height: 8),
-            _buildInfoRow(context, 'Valid Until:', _formatDate(record.validUntil)),
+            _buildInfoRow(
+                context, 'Status:', record.isActive ? 'Active' : 'Inactive'),
             const SizedBox(height: 8),
             _buildInfoRow(
-              context, 
-              'Days Remaining:', 
-              record.isExpired 
-                ? 'Expired' 
-                : '${record.validUntil.difference(DateTime.now()).inDays} days'
-            ),
+                context, 'Valid Until:', _formatDate(record.validUntil)),
+            const SizedBox(height: 8),
+            _buildInfoRow(
+                context,
+                'Days Remaining:',
+                record.isExpired
+                    ? 'Expired'
+                    : '${record.validUntil.difference(DateTime.now()).inDays} days'),
           ],
         ),
       ),
@@ -285,15 +295,16 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
             Text(
               'Personal Information',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 16),
             _buildInfoRow(context, 'Name:', metadata.name),
             const SizedBox(height: 8),
             _buildInfoRow(context, 'Nationality:', metadata.nationality),
             const SizedBox(height: 8),
-            _buildInfoRow(context, 'Date of Birth:', _formatDate(metadata.dateOfBirth)),
+            _buildInfoRow(
+                context, 'Date of Birth:', _formatDate(metadata.dateOfBirth)),
             const SizedBox(height: 8),
             _buildInfoRow(context, 'Phone:', metadata.phoneNumber),
             const SizedBox(height: 8),
@@ -306,8 +317,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
             Text(
               'Emergency Contact',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             _buildInfoRow(context, 'Name:', metadata.emergencyContact),
@@ -319,7 +330,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, BlockchainProvider blockchainProvider, TouristRecord record) {
+  Widget _buildActionButtons(BuildContext context,
+      BlockchainProvider blockchainProvider, TouristRecord record) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -329,8 +341,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
             Text(
               'Actions',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -345,7 +357,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _copyToClipboard(blockchainProvider.walletAddress),
+                    onPressed: () => _copyToClipboard(
+                        blockchainProvider.walletAddress ?? ''),
                     icon: const Icon(Icons.copy),
                     label: const Text('Copy Address'),
                   ),
@@ -357,7 +370,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _deleteExpiredID(context, blockchainProvider),
+                  onPressed: () =>
+                      _deleteExpiredID(context, blockchainProvider),
                   icon: const Icon(Icons.delete),
                   label: const Text('Delete Expired ID'),
                   style: ElevatedButton.styleFrom(
@@ -381,9 +395,9 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
           child: Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade600,
-            ),
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
+                ),
           ),
         ),
         Expanded(
@@ -397,10 +411,11 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
   }
 
   void _showQRCode(BuildContext context) {
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
     final qrData = {
       'tokenId': blockchainProvider.tokenId,
-      'address': blockchainProvider.walletAddress,
+      'address': blockchainProvider.walletAddress ?? '',
       'touristIdHash': blockchainProvider.touristRecord?.touristIdHash,
     };
 
@@ -415,8 +430,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
               Text(
                 'Tourist ID QR Code',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 16),
               Container(
@@ -437,8 +452,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
               Text(
                 'Scan this QR code to verify your Tourist ID',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
+                      color: Colors.grey.shade600,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -464,20 +479,22 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
   }
 
   void _handleMenuAction(BuildContext context, String action) {
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
-    
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
+
     switch (action) {
       case 'refresh':
         blockchainProvider.refreshTouristRecord();
         _loadMetadata();
         break;
       case 'copy_address':
-        _copyToClipboard(blockchainProvider.walletAddress);
+        _copyToClipboard(blockchainProvider.walletAddress ?? '');
         break;
     }
   }
 
-  void _deleteExpiredID(BuildContext context, BlockchainProvider blockchainProvider) {
+  void _deleteExpiredID(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -506,7 +523,8 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to delete Tourist ID: ${blockchainProvider.errorMessage}'),
+                      content: Text(
+                          'Failed to delete Tourist ID: ${blockchainProvider.errorMessage}'),
                       backgroundColor: Colors.red,
                     ),
                   );

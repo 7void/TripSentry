@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _buildInfoRow(context, 'Address:', blockchainProvider.shortWalletAddress),
+            _buildInfoRow(context, 'Address:', blockchainProvider.shortWalletAddress ?? 'N/A'),
             const SizedBox(height: 8),
             FutureBuilder<String>(
               future: blockchainProvider.getWalletBalance(),

@@ -6,6 +6,7 @@ import 'screens/wallet_setup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/tourist_id_registration_screen.dart';
 import 'screens/tourist_id_details_screen.dart';
+import 'screens/error_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -45,8 +46,10 @@ class MyApp extends StatelessWidget {
         routes: {
           '/wallet-setup': (context) => const WalletSetupScreen(),
           '/home': (context) => const HomeScreen(),
-          '/tourist-id-registration': (context) => const TouristIDRegistrationScreen(),
+          '/tourist-id-registration': (context) =>
+              const TouristIDRegistrationScreen(),
           '/tourist-id-details': (context) => const TouristIDDetailsScreen(),
+          '/error': (context) => const ErrorScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),

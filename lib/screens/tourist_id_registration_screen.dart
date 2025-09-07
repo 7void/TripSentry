@@ -1,3 +1,4 @@
+// lib/screens/tourist_id_registration_screen.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,13 +9,15 @@ class TouristIDRegistrationScreen extends StatefulWidget {
   const TouristIDRegistrationScreen({super.key});
 
   @override
-  State<TouristIDRegistrationScreen> createState() => _TouristIDRegistrationScreenState();
+  State<TouristIDRegistrationScreen> createState() =>
+      _TouristIDRegistrationScreenState();
 }
 
-class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScreen> {
+class _TouristIDRegistrationScreenState
+    extends State<TouristIDRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _pageController = PageController();
-  
+
   // Form controllers
   final _nameController = TextEditingController();
   final _passportController = TextEditingController();
@@ -23,8 +26,7 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
   final _phoneController = TextEditingController();
   final _emergencyContactController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
-  final _ownerPrivateKeyController = TextEditingController();
-  
+
   DateTime? _dateOfBirth;
   DateTime? _validUntil;
   List<String> _itinerary = [];
@@ -41,7 +43,6 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
     _phoneController.dispose();
     _emergencyContactController.dispose();
     _emergencyPhoneController.dispose();
-    _ownerPrivateKeyController.dispose();
     super.dispose();
   }
 
@@ -114,16 +115,16 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
               Text(
                 'Transaction: ${blockchainProvider.transactionHash.substring(0, 10)}...',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontFamily: 'monospace',
-                ),
+                      fontFamily: 'monospace',
+                    ),
               ),
             ],
             const SizedBox(height: 24),
             Text(
               'Please wait while we create your secure digital Tourist ID. This may take a few minutes.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -143,15 +144,15 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
             Text(
               'Personal Information',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Please provide your basic personal information.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
             const SizedBox(height: 24),
             TextFormField(
@@ -232,15 +233,15 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
           Text(
             'Document Information',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Provide your identification documents.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
           const SizedBox(height: 24),
           TextFormField(
@@ -302,15 +303,15 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
           Text(
             'Travel Information',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Emergency contacts and travel validity.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
           const SizedBox(height: 24),
           TextFormField(
@@ -361,22 +362,6 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          TextFormField(
-            controller: _ownerPrivateKeyController,
-            decoration: const InputDecoration(
-              labelText: 'Authority Private Key',
-              hintText: 'Private key of the issuing authority',
-              prefixIcon: Icon(Icons.vpn_key),
-            ),
-            obscureText: true,
-            validator: (value) {
-              if (value?.isEmpty ?? true) {
-                return 'Please enter the authority private key';
-              }
-              return null;
-            },
-          ),
         ],
       ),
     );
@@ -391,15 +376,15 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
           Text(
             'Review Information',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Please review your information before submitting.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
           const SizedBox(height: 24),
           _buildReviewSection('Personal Information', [
@@ -435,14 +420,14 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             ...items.map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(item),
-            )),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(item),
+                )),
           ],
         ),
       ),
@@ -519,16 +504,13 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
         }
         return true;
       case 2:
-        if (_emergencyContactController.text.isEmpty || _emergencyPhoneController.text.isEmpty) {
+        if (_emergencyContactController.text.isEmpty ||
+            _emergencyPhoneController.text.isEmpty) {
           _showSnackBar('Please fill in emergency contact information');
           return false;
         }
         if (_validUntil == null) {
           _showSnackBar('Please select validity end date');
-          return false;
-        }
-        if (_ownerPrivateKeyController.text.isEmpty) {
-          _showSnackBar('Please enter the authority private key');
           return false;
         }
         return true;
@@ -544,7 +526,8 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
       _isSubmitting = true;
     });
 
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
 
     // Create metadata object
     final metadata = TouristMetadata(
@@ -558,6 +541,7 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
       emergencyPhone: _emergencyPhoneController.text.trim(),
       itinerary: _itinerary,
       profileImageCID: _profileImageCID,
+      issuedAt: DateTime.now(),
     );
 
     // Use the primary identity document (passport in this case)
@@ -566,7 +550,6 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
     final success = await blockchainProvider.mintTouristID(
       metadata: metadata,
       validUntil: _validUntil!,
-      ownerPrivateKey: _ownerPrivateKeyController.text.trim(),
       identityDocument: identityDocument,
     );
 
@@ -579,7 +562,8 @@ class _TouristIDRegistrationScreenState extends State<TouristIDRegistrationScree
     if (success) {
       _showSuccessDialog();
     } else {
-      _showSnackBar('Failed to create Tourist ID: ${blockchainProvider.errorMessage}');
+      _showSnackBar(
+          'Failed to create Tourist ID: ${blockchainProvider.errorMessage}');
     }
   }
 
