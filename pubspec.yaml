@@ -11,7 +11,7 @@ dependencies:
 
   # Blockchain dependencies
   web3dart: ^2.7.3
-
+  geofence_service: ^6.0.0+1 
   http: ^1.1.0
 
   # Crypto and security
@@ -32,7 +32,6 @@ dependencies:
 
   # QR Code
   qr_flutter: ^4.1.0
-  qr_code_scanner: ^1.0.1
 
   # Permission handling
   permission_handler: ^11.1.0
@@ -42,6 +41,12 @@ dependencies:
 
   # Notifications
   flutter_local_notifications: ^19.4.1
+
+  # ✅ Google Maps (replacing flutter_map for better API integration)
+  google_maps_flutter: ^2.5.0
+  
+  # ✅ Keep latlong2 for coordinate calculations
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

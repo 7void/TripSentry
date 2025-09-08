@@ -218,7 +218,7 @@ class TouristRecord {
         other.issuedAt == issuedAt &&
         other.issuerInfo == issuerInfo;
   }
-
+  
   @override
   int get hashCode {
     return Object.hash(

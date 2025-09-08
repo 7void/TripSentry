@@ -12,16 +12,15 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    // Use Java 21 for Android compilation
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-        // Enable core library desugaring required by some AARs
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
         applicationId = "com.example.touristapp"
+        // ✅ Maps plugin requires minSdk 21
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -39,20 +38,22 @@ flutter {
     source = "../.."
 }
 
-// Force Java compile tasks in this module to use Java 21
 tasks.withType<JavaCompile>().configureEach {
-    sourceCompatibility = "21"
-    targetCompatibility = "21"
+    sourceCompatibility = JavaVersion.VERSION_17.toString()
+    targetCompatibility = JavaVersion.VERSION_17.toString()
 }
 
-// Ensure all Kotlin compile tasks in this module use JVM target 21
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
-        jvmTarget = "21"
+        jvmTarget = "17"
     }
 }
 
 dependencies {
-    // desugaring needed by some AARs (flutter_local_notifications, qr_code_scanner)
+    // ✅ Google Maps & Location services
+    implementation("com.google.android.gms:play-services-maps:18.1.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
+    // ✅ Desugaring for Java 17
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

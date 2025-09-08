@@ -17,7 +17,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkTouristIDStatus() async {
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
     await blockchainProvider.refreshTouristRecord();
     await blockchainProvider.checkIfExpired();
   }
@@ -91,7 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWalletCard(BuildContext context, BlockchainProvider blockchainProvider) {
+  Widget _buildWalletCard(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -108,13 +110,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Wallet',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            _buildInfoRow(context, 'Address:', blockchainProvider.shortWalletAddress ?? 'N/A'),
+            _buildInfoRow(context, 'Address:',
+                blockchainProvider.shortWalletAddress ?? 'N/A'),
             const SizedBox(height: 8),
             FutureBuilder<String>(
               future: blockchainProvider.getWalletBalance(),
@@ -132,7 +135,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTouristIDSection(BuildContext context, BlockchainProvider blockchainProvider) {
+  Widget _buildTouristIDSection(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     if (blockchainProvider.hasActiveTouristID) {
       return _buildActiveTouristIDCard(context, blockchainProvider);
     } else {
@@ -140,10 +144,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildActiveTouristIDCard(BuildContext context, BlockchainProvider blockchainProvider) {
+  Widget _buildActiveTouristIDCard(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     final record = blockchainProvider.touristRecord!;
     final isExpired = record.isExpired;
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -160,12 +165,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Tourist ID',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: isExpired ? Colors.orange : Colors.green,
                     borderRadius: BorderRadius.circular(12),
@@ -211,7 +217,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isExpired)
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _deleteExpiredID(context, blockchainProvider),
+                      onPressed: () =>
+                          _deleteExpiredID(context, blockchainProvider),
                       icon: const Icon(Icons.delete),
                       label: const Text('Delete'),
                       style: ElevatedButton.styleFrom(
@@ -228,7 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNoTouristIDCard(BuildContext context, BlockchainProvider blockchainProvider) {
+  Widget _buildNoTouristIDCard(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -245,8 +253,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Tourist ID',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
@@ -254,8 +262,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               'You don\'t have an active Tourist ID yet. Create one to enjoy secure and verified travel experiences.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -274,7 +282,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, BlockchainProvider blockchainProvider) {
+  Widget _buildQuickActions(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -284,8 +293,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               'Quick Actions',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -324,11 +333,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _buildActionButton(
                     context,
-                    Icons.help,
-                    'Help',
-                    () => _showComingSoon(context),
+                    Icons.my_location,
+                    'Geo Location',
+                    () => Navigator.of(context).pushNamed('/geo-fencing'),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    Icons.map,
+                    'Test Map',
+                    () => Navigator.of(context).pushNamed('/test-map'), // ✅
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(child: SizedBox()), // filler
               ],
             ),
           ],
@@ -337,7 +361,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildActionButton(BuildContext context, IconData icon, String label, VoidCallback onPressed) {
+  Widget _buildActionButton(
+      BuildContext context, IconData icon, String label, VoidCallback onPressed) {
     return OutlinedButton(
       onPressed: onPressed,
       child: Padding(
@@ -354,7 +379,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildErrorCard(BuildContext context, BlockchainProvider blockchainProvider) {
+  Widget _buildErrorCard(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     return Card(
       color: Colors.red.shade50,
       child: Padding(
@@ -369,9 +395,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Error',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.red.shade600,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: Colors.red.shade600,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
@@ -400,9 +426,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade600,
-            ),
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
+                ),
           ),
         ),
         Expanded(
@@ -420,8 +446,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showWalletInfo(BuildContext context) {
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
-    
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -451,8 +478,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _handleMenuAction(BuildContext context, String action) {
-    final blockchainProvider = Provider.of<BlockchainProvider>(context, listen: false);
-    
+    final blockchainProvider =
+        Provider.of<BlockchainProvider>(context, listen: false);
+
     switch (action) {
       case 'refresh':
         _checkTouristIDStatus();
@@ -463,13 +491,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showClearWalletDialog(BuildContext context, BlockchainProvider blockchainProvider) {
+  void _showClearWalletDialog(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear Wallet'),
         content: const Text(
-          'This will permanently delete your wallet and all associated data. Make sure you have backed up your private key. This action cannot be undone.',
+          'This will permanently delete your wallet and all associated data. '
+          'Make sure you have backed up your private key. This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -492,13 +522,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _deleteExpiredID(BuildContext context, BlockchainProvider blockchainProvider) {
+  void _deleteExpiredID(
+      BuildContext context, BlockchainProvider blockchainProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Expired Tourist ID'),
         content: const Text(
-          'This will permanently delete your expired Tourist ID from the blockchain. This action cannot be undone.',
+          'This will permanently delete your expired Tourist ID from the blockchain. '
+          'This action cannot be undone.',
         ),
         actions: [
           TextButton(

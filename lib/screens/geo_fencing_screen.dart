@@ -1,0 +1,307 @@
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart' as geo;
+import 'package:geofence_service/geofence_service.dart' as gf;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class GeoFencingScreen extends StatefulWidget {
+  const GeoFencingScreen({super.key});
+
+  @override
+  State<GeoFencingScreen> createState() => _GeoFencingScreenState();
+}
+
+class _GeoFencingScreenState extends State<GeoFencingScreen> {
+  GoogleMapController? _mapController;
+  LatLng _currentPosition = const LatLng(12.8447, 80.1537); // default start
+  final Set<Marker> _markers = {};
+  final Set<Circle> _circles = {};
+
+  // Safe zones
+  final List<LatLng> _safezones = [
+    LatLng(13.0827, 80.2707), // example
+  ];
+
+  // Unsafe zones (red)
+  final List<LatLng> _unsafeZones = [
+    LatLng(12.844696702391772, 80.15377363276492),
+  ];
+
+  final double _geoFenceRadius = 200.0; // meters
+
+  // Geofence service
+  final gf.GeofenceService geofenceService = gf.GeofenceService.instance.setup(
+    interval: 5000,
+    accuracy: 100,
+    loiteringDelayMs: 60000,
+    statusChangeDelayMs: 10000,
+    useActivityRecognition: false,
+    allowMockLocations: false,
+    printDevLog: true,
+  );
+
+  bool _soundEnabled = true;
+  late SharedPreferences _prefs;
+
+  // Notifications
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  @override
+  void initState() {
+    super.initState();
+    _initNotifications();
+    _loadPreferences();
+    _checkPermissionAndStartTracking();
+    _addGeofenceCircles();
+    _startBackgroundGeofencing();
+  }
+
+  // 🔔 Init notifications
+  Future<void> _initNotifications() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  // Load toggle state
+  Future<void> _loadPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _soundEnabled = _prefs.getBool('soundEnabled') ?? true;
+    });
+  }
+
+  Future<void> _saveSoundPreference(bool value) async {
+    await _prefs.setBool('soundEnabled', value);
+  }
+
+  Future<void> _checkPermissionAndStartTracking() async {
+    if (!await geo.Geolocator.isLocationServiceEnabled()) {
+      return Future.error('Location services are disabled.');
+    }
+
+    geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+    if (permission == geo.LocationPermission.denied) {
+      permission = await geo.Geolocator.requestPermission();
+      if (permission == geo.LocationPermission.denied) {
+        return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == geo.LocationPermission.deniedForever) {
+      return Future.error('Location permissions are permanently denied.');
+    }
+
+    geo.Geolocator.getPositionStream(
+      locationSettings: const geo.LocationSettings(
+        accuracy: geo.LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).listen((geo.Position position) {
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+        _updateMarker();
+      });
+      _moveCameraToCurrentPosition();
+      _checkUnsafeZones();
+    });
+  }
+
+  // Add red and green geofence circles
+  void _addGeofenceCircles() {
+    setState(() {
+      _circles.clear();
+
+      // Unsafe zones (red)
+      for (var zone in _unsafeZones) {
+        _circles.add(
+          Circle(
+            circleId: CircleId('unsafe_${zone.latitude}_${zone.longitude}'),
+            center: zone,
+            radius: _geoFenceRadius,
+            fillColor: Colors.red.withOpacity(0.3),
+            strokeColor: Colors.red,
+            strokeWidth: 2,
+          ),
+        );
+      }
+
+      // Safe zones (green)
+      for (var safeZone in _safezones) {
+        _circles.add(
+          Circle(
+            circleId: CircleId('safe_${safeZone.latitude}_${safeZone.longitude}'),
+            center: safeZone,
+            radius: _geoFenceRadius,
+            fillColor: Colors.green.withOpacity(0.1),
+            strokeColor: Colors.green,
+            strokeWidth: 2,
+          ),
+        );
+      }
+    });
+  }
+
+  void _updateMarker() {
+    setState(() {
+      _markers.clear();
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('currentLocation'),
+          position: _currentPosition,
+          infoWindow: const InfoWindow(title: 'You are here'),
+        ),
+      );
+    });
+  }
+
+  void _moveCameraToCurrentPosition() {
+    if (_mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: _currentPosition, zoom: 16),
+        ),
+      );
+    }
+  }
+
+  // Check unsafe zone entry
+  void _checkUnsafeZones() {
+    for (var zone in _unsafeZones) {
+      double distance = geo.Geolocator.distanceBetween(
+        _currentPosition.latitude,
+        _currentPosition.longitude,
+        zone.latitude,
+        zone.longitude,
+      );
+      if (distance <= _geoFenceRadius) {
+        _showNotification("⚠️ Alert", "You entered an unsafe zone!");
+        break;
+      }
+    }
+  }
+
+  Future<void> _startBackgroundGeofencing() async {
+    final status = await Permission.locationAlways.status;
+    if (!status.isGranted) {
+      await Permission.locationAlways.request();
+    }
+
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+
+    final List<gf.Geofence> geofenceList = [
+      ..._unsafeZones.map((zone) => gf.Geofence(
+            id: zone.toString(),
+            latitude: zone.latitude,
+            longitude: zone.longitude,
+            radius: [gf.GeofenceRadius(id: 'r1', length: _geoFenceRadius)],
+          )),
+      ..._safezones.map((zone) => gf.Geofence(
+            id: zone.toString(),
+            latitude: zone.latitude,
+            longitude: zone.longitude,
+            radius: [gf.GeofenceRadius(id: 'r1', length: _geoFenceRadius)],
+          )),
+    ];
+
+    geofenceService.addGeofenceStatusChangeListener(
+      (gf.Geofence geofence, gf.GeofenceRadius radius, gf.GeofenceStatus status, gf.Location location) async {
+        if (status == gf.GeofenceStatus.ENTER) {
+          await _showNotification("⚠️ Geofence Alert", "You entered ${geofence.id}");
+        } else if (status == gf.GeofenceStatus.EXIT) {
+          await _showNotification("✅ Geofence Safe", "You exited ${geofence.id}");
+        }
+      },
+    );
+
+    try {
+      await geofenceService.start(geofenceList);
+    } catch (e) {
+      debugPrint('Start failed: $e');
+    }
+  }
+
+  Future<void> _showNotification(String title, String body) async {
+    final androidDetails = AndroidNotificationDetails(
+      'geofence_channel',
+      'Geofence Alerts',
+      channelDescription: 'Notifications for geofence events',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: _soundEnabled,
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList([0, 500, 1000, 500]),
+    );
+
+    final iosDetails = DarwinNotificationDetails(
+      presentSound: _soundEnabled,
+      sound: _soundEnabled ? 'default' : null,
+    );
+
+    final platformDetails = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      title,
+      body,
+      platformDetails,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Geo Fencing Map'),
+        actions: [
+          Row(
+            children: [
+              const Text("Sound"),
+              Switch(
+                value: _soundEnabled,
+                onChanged: (val) {
+                  setState(() {
+                    _soundEnabled = val;
+                  });
+                  _saveSoundPreference(val);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: GoogleMap(
+        initialCameraPosition: CameraPosition(target: _currentPosition, zoom: 16),
+        markers: _markers,
+        circles: _circles,
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        onMapCreated: (GoogleMapController controller) {
+          _mapController = controller;
+          _moveCameraToCurrentPosition();
+        },
+        onLongPress: (position) {
+          // Add new safe zone on long press
+          setState(() {
+            _safezones.add(position);
+            _addGeofenceCircles();
+            _startBackgroundGeofencing();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Safe zone added!'), backgroundColor: Colors.green),
+          );
+        },
+      ),
+    );
+  }
+}

@@ -7,6 +7,8 @@ import 'screens/home_screen.dart';
 import 'screens/tourist_id_registration_screen.dart';
 import 'screens/tourist_id_details_screen.dart';
 import 'screens/error_screen.dart';
+import 'screens/geo_fencing_screen.dart';
+import 'screens/test_map_screen.dart'; // ✅ new import
 
 void main() {
   runApp(const MyApp());
@@ -50,6 +52,8 @@ class MyApp extends StatelessWidget {
               const TouristIDRegistrationScreen(),
           '/tourist-id-details': (context) => const TouristIDDetailsScreen(),
           '/error': (context) => const ErrorScreen(),
+          '/geo-fencing': (context) => const GeoFencingScreen(),
+          '/test-map': (context) => const TestMapScreen(), // ✅ new route
         },
         debugShowCheckedModeBanner: false,
       ),
