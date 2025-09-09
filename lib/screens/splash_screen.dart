@@ -31,14 +31,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (!mounted) return;
 
-      // Check if wallet exists
-      if (blockchainProvider.wallet != null) {
-        // Wallet exists, go to home
-        Navigator.of(context).pushReplacementNamed('/home');
-      } else {
-        // No wallet, show wallet setup
-        Navigator.of(context).pushReplacementNamed('/wallet-setup');
-      }
+      // Go directly to home screen (no wallet setup needed)
+      Navigator.of(context).pushReplacementNamed('/home');
     } catch (e, st) {
       // Log error and navigate to an error/fallback screen (adjust as needed)
       debugPrint('Error during app initialization: $e\n$st');

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/blockchain_provider.dart';
 import 'screens/splash_screen.dart';
-import 'screens/wallet_setup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/tourist_id_registration_screen.dart';
 import 'screens/tourist_id_details_screen.dart';
@@ -46,7 +45,6 @@ class MyApp extends StatelessWidget {
         ),
         home: const SplashScreen(),
         routes: {
-          '/wallet-setup': (context) => const WalletSetupScreen(),
           '/home': (context) => const HomeScreen(),
           '/tourist-id-registration': (context) =>
               const TouristIDRegistrationScreen(),

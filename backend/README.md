@@ -217,3 +217,5 @@ CMD ["npm", "start"]
 - Verify your blockchain configuration
 - Test the health endpoint: `GET /health`
 
+
+

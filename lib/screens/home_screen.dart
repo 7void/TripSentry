@@ -29,10 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Tourist Safety'),
         actions: [
-          IconButton(
-            onPressed: () => _showWalletInfo(context),
-            icon: const Icon(Icons.account_balance_wallet),
-          ),
           PopupMenuButton<String>(
             onSelected: (value) => _handleMenuAction(context, value),
             itemBuilder: (context) => [
@@ -47,12 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const PopupMenuItem(
-                value: 'clear_wallet',
+                value: 'clear_data',
                 child: Row(
                   children: [
                     Icon(Icons.delete_forever, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Clear Wallet', style: TextStyle(color: Colors.red)),
+                    Text('Clear Data', style: TextStyle(color: Colors.red)),
                   ],
                 ),
               ),
@@ -74,8 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildWalletCard(context, blockchainProvider),
-                  const SizedBox(height: 16),
                   _buildTouristIDSection(context, blockchainProvider),
                   const SizedBox(height: 16),
                   _buildQuickActions(context, blockchainProvider),
@@ -88,49 +82,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildWalletCard(
-      BuildContext context, BlockchainProvider blockchainProvider) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.account_balance_wallet,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Wallet',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildInfoRow(context, 'Address:',
-                blockchainProvider.shortWalletAddress ?? 'N/A'),
-            const SizedBox(height: 8),
-            FutureBuilder<String>(
-              future: blockchainProvider.getWalletBalance(),
-              builder: (context, snapshot) {
-                return _buildInfoRow(
-                  context,
-                  'Balance:',
-                  '${snapshot.data ?? '0.0'} ETH',
-                );
-              },
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -188,7 +139,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _buildInfoRow(context, 'Token ID:', '#${blockchainProvider.tokenId}'),
+            _buildInfoRow(
+                context, 'Token ID:', '#${blockchainProvider.tokenId}'),
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
@@ -260,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'You don\'t have an active Tourist ID yet. Create one to enjoy secure and verified travel experiences.',
+              'You don\'t have an active Tourist ID yet. Create one to enjoy a secure and verified travel experiences.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey.shade600,
                   ),
@@ -361,8 +313,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildActionButton(
-      BuildContext context, IconData icon, String label, VoidCallback onPressed) {
+  Widget _buildActionButton(BuildContext context, IconData icon, String label,
+      VoidCallback onPressed) {
     return OutlinedButton(
       onPressed: onPressed,
       child: Padding(
@@ -445,38 +397,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  void _showWalletInfo(BuildContext context) {
-    final blockchainProvider =
-        Provider.of<BlockchainProvider>(context, listen: false);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Wallet Information'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Address: ${blockchainProvider.wallet?.address ?? 'N/A'}'),
-            const SizedBox(height: 8),
-            FutureBuilder<String>(
-              future: blockchainProvider.getWalletBalance(),
-              builder: (context, snapshot) {
-                return Text('Balance: ${snapshot.data ?? '0.0'} ETH');
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _handleMenuAction(BuildContext context, String action) {
     final blockchainProvider =
         Provider.of<BlockchainProvider>(context, listen: false);
@@ -485,21 +405,21 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'refresh':
         _checkTouristIDStatus();
         break;
-      case 'clear_wallet':
-        _showClearWalletDialog(context, blockchainProvider);
+      case 'clear_data':
+        _showClearDataDialog(context, blockchainProvider);
         break;
     }
   }
 
-  void _showClearWalletDialog(
+  void _showClearDataDialog(
       BuildContext context, BlockchainProvider blockchainProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Wallet'),
+        title: const Text('Clear Tourist Data'),
         content: const Text(
-          'This will permanently delete your wallet and all associated data. '
-          'Make sure you have backed up your private key. This action cannot be undone.',
+          'This will permanently delete your tourist data and all associated information. '
+          'This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -511,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.of(context).pop();
               await blockchainProvider.clearWallet();
               if (context.mounted) {
-                Navigator.of(context).pushReplacementNamed('/wallet-setup');
+                Navigator.of(context).pushReplacementNamed('/home');
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

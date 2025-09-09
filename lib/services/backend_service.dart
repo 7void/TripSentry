@@ -5,7 +5,7 @@ import '../models/tourist_record.dart';
 
 class BackendService {
   // Use the actual working URL from BackendMintService
-  static const String _baseUrl = 'http://172.20.188.125:3000/api';
+  static const String _baseUrl = 'http://172.20.189.61:3000/api';
   static const String _apiKey = 'b74a90d9569eb50c5062bdfea78555c82696054b4de1fc224c622da6467358ba';
   
   static const String _applicationIdKey = 'tourist_application_id';
@@ -26,7 +26,7 @@ class BackendService {
   Future<bool> checkHealth() async {
     try {
       print('Checking backend health...');
-      final url = Uri.parse('http://172.20.188.125:3000/health');
+      final url = Uri.parse('http://172.20.189.61:3000/health');
       final response = await http.get(url).timeout(
         Duration(seconds: 10),
         onTimeout: () {

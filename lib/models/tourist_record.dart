@@ -1,50 +1,6 @@
 // Updated TouristRecord model to match the enhanced smart contract
 import 'package:web3dart/web3dart.dart';
 
-// Wallet information class
-class WalletInfo {
-  final String address;
-  final String privateKey;
-  final List<int> publicKey;
-
-  WalletInfo({
-    required this.address,
-    required this.privateKey,
-    required this.publicKey,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'address': address,
-      'privateKey': privateKey,
-      'publicKey':
-          publicKey.map((e) => e).toList(), // Ensure it's a proper list
-    };
-  }
-
-  factory WalletInfo.fromJson(Map<String, dynamic> json) {
-    List<int> publicKey = [];
-    try {
-      if (json['publicKey'] != null) {
-        if (json['publicKey'] is List) {
-          publicKey = List<int>.from(json['publicKey']);
-        } else if (json['publicKey'] is String) {
-          publicKey = json['publicKey'].codeUnits;
-        }
-      }
-    } catch (e) {
-      print('Error parsing publicKey: $e');
-      publicKey = [];
-    }
-
-    return WalletInfo(
-      address: json['address'] ?? '',
-      privateKey: json['privateKey'] ?? '',
-      publicKey: publicKey,
-    );
-  }
-}
-
 // Tourist metadata class
 class TouristMetadata {
   final String name;
@@ -218,7 +174,7 @@ class TouristRecord {
         other.issuedAt == issuedAt &&
         other.issuerInfo == issuerInfo;
   }
-  
+
   @override
   int get hashCode {
     return Object.hash(

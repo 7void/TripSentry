@@ -39,7 +39,6 @@ class BlockchainProvider with ChangeNotifier {
   String _applicationId = '';
   bool _hasActiveTouristID = false;
   String? _touristIdHash; // Store the hash for tracking
-  WalletInfo? _wallet;
   String _transactionHash = '';
 
   // Getters
@@ -56,17 +55,7 @@ class BlockchainProvider with ChangeNotifier {
       _status == BlockchainStatus.loading ||
       _status == BlockchainStatus.initializing;
   bool get hasError => _status == BlockchainStatus.error;
-  WalletInfo? get wallet => _wallet;
   String get transactionHash => _transactionHash;
-
-  // Computed getters
-  String? get shortWalletAddress {
-    if (_wallet?.address == null) return null;
-    final address = _wallet!.address;
-    return '${address.substring(0, 6)}...${address.substring(address.length - 4)}';
-  }
-
-  String? get walletAddress => _wallet?.address;
 
   // Initialize the services
   Future<void> initialize() async {
@@ -89,14 +78,20 @@ class BlockchainProvider with ChangeNotifier {
         // Continue without blockchain functionality
       }
 
-      // Load existing wallet
+      // Load existing tourist data
       try {
-        _wallet = await _walletService.getWallet();
+        _tokenId = await _walletService.getTokenId();
+        _touristRecord = await _walletService.getTouristRecord();
+        if (_tokenId != null && _touristRecord != null) {
+          _hasActiveTouristID = true;
+        }
       } catch (e) {
-        print('Error loading wallet: $e');
-        // Clear any corrupted wallet data
+        print('Error loading tourist data: $e');
+        // Clear any corrupted data
         await _walletService.clearWallet();
-        _wallet = null;
+        _tokenId = null;
+        _touristRecord = null;
+        _hasActiveTouristID = false;
       }
 
       // Check if user has any existing application or tourist ID
@@ -114,24 +109,10 @@ class BlockchainProvider with ChangeNotifier {
     await initialize();
   }
 
-  // Create a new wallet
-  Future<void> createWallet() async {
-    _setStatus(BlockchainStatus.loading);
-
-    try {
-      _wallet = await _walletService.createWallet();
-      _setStatus(BlockchainStatus.ready);
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to create wallet: ${e.toString()}');
-    }
-  }
-
-  // Clear wallet
+  // Clear tourist data
   Future<void> clearWallet() async {
     try {
       await _walletService.clearWallet();
-      _wallet = null;
       _touristRecord = null;
       _tokenId = null;
       _hasActiveTouristID = false;
@@ -139,20 +120,7 @@ class BlockchainProvider with ChangeNotifier {
       _applicationStatus = ApplicationStatus.notSubmitted;
       notifyListeners();
     } catch (e) {
-      _setError('Failed to clear wallet: ${e.toString()}');
-    }
-  }
-
-  // Get wallet balance
-  Future<String> getWalletBalance([String? address]) async {
-    try {
-      final targetAddress = address ?? _wallet?.address;
-      if (targetAddress == null) return '0.0';
-
-      return await _walletService.getWalletBalance();
-    } catch (e) {
-      print('Error getting wallet balance: $e');
-      return '0.0';
+      _setError('Failed to clear tourist data: ${e.toString()}');
     }
   }
 
@@ -162,13 +130,7 @@ class BlockchainProvider with ChangeNotifier {
     required DateTime validUntil,
     required String identityDocument,
   }) async {
-    if (_wallet == null) {
-      _setError('No wallet found');
-      return false;
-    }
-
     print('=== STARTING MINT PROCESS ===');
-    print('Wallet Address: ${_wallet!.address}');
     print('Valid Until: $validUntil');
     print('Identity Document: $identityDocument');
 
@@ -195,7 +157,8 @@ class BlockchainProvider with ChangeNotifier {
       print('Metadata uploaded to IPFS: $metadataCID');
 
       // Generate tourist ID hash
-      final touristIdHash = _blockchainService.generateTouristIdHash(identityDocument);
+      final touristIdHash =
+          _blockchainService.generateTouristIdHash(identityDocument);
       print('Generated tourist ID hash: $touristIdHash');
 
       // Set status to transaction pending
@@ -204,7 +167,8 @@ class BlockchainProvider with ChangeNotifier {
       // FIXED: Use the consolidated backend service's createTouristID method
       print('Creating Tourist ID through backend...');
       final result = await _backendService.createTouristID(
-        touristAddress: _wallet!.address,
+        touristAddress:
+            'central_wallet', // Use central wallet for all tourist IDs
         touristIdHash: touristIdHash,
         validUntil: validUntil,
         metadataCID: metadataCID,
@@ -249,29 +213,18 @@ class BlockchainProvider with ChangeNotifier {
     }
   }
 
-  // Delete expired Tourist ID
+  // Delete expired Tourist ID (now handled by backend)
   Future<bool> deleteExpiredTouristID() async {
-    if (_tokenId == null || _wallet == null) {
-      _setError('No Tourist ID or wallet found');
+    if (_tokenId == null) {
+      _setError('No Tourist ID found');
       return false;
     }
 
     _setStatus(BlockchainStatus.loading);
 
     try {
-      final txHash = await _blockchainService.deleteExpiredTouristID(
-        tokenId: _tokenId!,
-        privateKey: _wallet!.privateKey,
-      );
-
-      // Wait for transaction confirmation
-      final receipt = await _blockchainService.waitForTransactionReceipt(txHash);
-      if (receipt == null || receipt.status == false) {
-        _setError('Transaction failed');
-        return false;
-      }
-
-      // Clear local data
+      // For now, just clear local data since backend doesn't have delete endpoint
+      // The expired Tourist ID will remain on blockchain but won't be accessible locally
       _tokenId = null;
       _touristRecord = null;
       _hasActiveTouristID = false;
@@ -279,6 +232,7 @@ class BlockchainProvider with ChangeNotifier {
       await _walletService.clearWallet();
 
       _setStatus(BlockchainStatus.ready);
+      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to delete Tourist ID: ${e.toString()}');
@@ -374,7 +328,8 @@ class BlockchainProvider with ChangeNotifier {
     if (_applicationId.isEmpty) return;
 
     try {
-      final statusResult = await _backendService.checkApplicationStatus(_applicationId);
+      final statusResult =
+          await _backendService.checkApplicationStatus(_applicationId);
 
       final newStatus = _parseApplicationStatus(statusResult['status']);
       if (newStatus != _applicationStatus) {
@@ -403,7 +358,8 @@ class BlockchainProvider with ChangeNotifier {
 
     try {
       // Get token ID from blockchain using the hash
-      final tokenId = await _blockchainService.getTokenIdByTouristHash(_touristIdHash!);
+      final tokenId =
+          await _blockchainService.getTokenIdByTouristHash(_touristIdHash!);
       if (tokenId != null) {
         _tokenId = tokenId;
 
@@ -480,26 +436,10 @@ class BlockchainProvider with ChangeNotifier {
         return false;
       }
 
-      // Create updated metadata
-      final updatedMetadata = TouristMetadata(
-        name: fullName,
-        passportNumber: currentMetadata.passportNumber,
-        aadhaarHash: currentMetadata.aadhaarHash,
-        nationality: currentMetadata.nationality,
-        dateOfBirth: currentMetadata.dateOfBirth,
-        phoneNumber: phoneNumber,
-        emergencyContact: currentMetadata.emergencyContact,
-        emergencyPhone: currentMetadata.emergencyPhone,
-        itinerary: currentMetadata.itinerary,
-        profileImageCID: profileImageBase64 ?? currentMetadata.profileImageCID,
-        issuedAt: currentMetadata.issuedAt,
-      );
-
       // This method doesn't exist in the consolidated service, so we'll skip this for now
       // or you can implement it if needed
       _setError('Update functionality not yet implemented');
       return false;
-
     } catch (e) {
       _setError('Failed to update details: ${e.toString()}');
       return false;

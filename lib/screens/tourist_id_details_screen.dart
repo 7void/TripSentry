@@ -199,8 +199,7 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
               const SizedBox(height: 8),
               _buildCardInfoRow('Valid Until', _formatDate(record.validUntil)),
               const SizedBox(height: 8),
-              _buildCardInfoRow(
-                  'Owner', blockchainProvider.shortWalletAddress ?? 'N/A'),
+              _buildCardInfoRow('Owner', 'Central Wallet'),
               if (_metadata != null) ...[
                 const SizedBox(height: 8),
                 _buildCardInfoRow('Name', _metadata!.name),
@@ -260,8 +259,7 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
             _buildInfoRow(
                 context, 'Token ID:', '#${blockchainProvider.tokenId}'),
             const SizedBox(height: 8),
-            _buildInfoRow(context, 'Owner Address:',
-                blockchainProvider.walletAddress ?? 'N/A'),
+            _buildInfoRow(context, 'Owner Address:', 'Central Wallet'),
             const SizedBox(height: 8),
             _buildInfoRow(context, 'Tourist ID Hash:', record.touristIdHash),
             const SizedBox(height: 8),
@@ -357,8 +355,7 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _copyToClipboard(
-                        blockchainProvider.walletAddress ?? ''),
+                    onPressed: () => _copyToClipboard('Central Wallet'),
                     icon: const Icon(Icons.copy),
                     label: const Text('Copy Address'),
                   ),
@@ -415,7 +412,7 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
         Provider.of<BlockchainProvider>(context, listen: false);
     final qrData = {
       'tokenId': blockchainProvider.tokenId,
-      'address': blockchainProvider.walletAddress ?? '',
+      'address': 'Central Wallet',
       'touristIdHash': blockchainProvider.touristRecord?.touristIdHash,
     };
 
@@ -488,7 +485,7 @@ class _TouristIDDetailsScreenState extends State<TouristIDDetailsScreen> {
         _loadMetadata();
         break;
       case 'copy_address':
-        _copyToClipboard(blockchainProvider.walletAddress ?? '');
+        _copyToClipboard('Central Wallet');
         break;
     }
   }

@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
@@ -37,7 +35,6 @@ class BlockchainService {
   late ContractFunction _getTokenOfTourist;
   late ContractFunction _getAllTokenIds;
   late ContractFunction _getAllActiveTouristIDs;
-  late ContractFunction _getAllTouristData;
   late ContractFunction _setCentralWallet;
 
   // Contract state variables
@@ -82,7 +79,6 @@ class BlockchainService {
       _getTokenOfTourist = _contract.function('getTokenOfTourist');
       _getAllTokenIds = _contract.function('getAllTokenIds');
       _getAllActiveTouristIDs = _contract.function('getAllActiveTouristIDs');
-      _getAllTouristData = _contract.function('getAllTouristData');
       _setCentralWallet = _contract.function('setCentralWallet');
 
       // State variables
@@ -95,18 +91,6 @@ class BlockchainService {
       print(
           'Contract loading failed, but continuing without blockchain functionality');
     }
-  }
-
-  // Generate a new wallet
-  WalletInfo generateWallet() {
-    final random = Random.secure();
-    final credentials = EthPrivateKey.createRandom(random);
-
-    return WalletInfo(
-      address: credentials.address.hex,
-      privateKey: credentials.privateKeyInt.toRadixString(16),
-      publicKey: credentials.publicKey.getEncoded(false),
-    );
   }
 
   // Create credentials from private key
