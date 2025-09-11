@@ -164,11 +164,31 @@ class BlockchainProvider with ChangeNotifier {
       // Set status to transaction pending
       _setStatus(BlockchainStatus.transactionPending);
 
-      // FIXED: Use the consolidated backend service's createTouristID method
+      // Resolve central wallet address to satisfy backend validation
+      String? resolvedWallet = await _blockchainService.getCentralWallet();
+      if (resolvedWallet == null || !resolvedWallet.startsWith('0x')) {
+        // Fallback: ask backend for governmentAddress
+        try {
+          final status = await _backendService.getBlockchainStatus();
+          final governmentAddress = status['governmentAddress'] as String?;
+          if (governmentAddress != null && governmentAddress.startsWith('0x')) {
+            resolvedWallet = governmentAddress;
+          }
+        } catch (e) {
+          // ignore, handled below
+        }
+      }
+
+      if (resolvedWallet == null || !resolvedWallet.startsWith('0x')) {
+        _setError('Central wallet address not available');
+        return false;
+      }
+      print('Using touristAddress: $resolvedWallet');
+
+      // Use the consolidated backend service's createTouristID method
       print('Creating Tourist ID through backend...');
       final result = await _backendService.createTouristID(
-        touristAddress:
-            'central_wallet', // Use central wallet for all tourist IDs
+        touristAddress: resolvedWallet,
         touristIdHash: touristIdHash,
         validUntil: validUntil,
         metadataCID: metadataCID,
@@ -540,6 +560,8 @@ class BlockchainProvider with ChangeNotifier {
   Future<void> resetApplication() async {
     try {
       await _clearLocalData();
+      // Ensure wallet-specific keys (e.g., 'tourist_record', int 'token_id') are also cleared
+      await _walletService.clearWallet();
       _setStatus(BlockchainStatus.ready);
     } catch (e) {
       _setError('Failed to reset application: ${e.toString()}');

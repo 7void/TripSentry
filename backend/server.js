@@ -21,7 +21,7 @@ app.use(compression());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://your-flutter-app-domain.com'] 
-    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://172.20.189.61:3000'],
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://172.20.188.199:3000'],
   credentials: true
 }));
 

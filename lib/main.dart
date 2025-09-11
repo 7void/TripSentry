@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'providers/blockchain_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'firebase_options.dart';
 import 'screens/tourist_id_registration_screen.dart';
 import 'screens/tourist_id_details_screen.dart';
 import 'screens/error_screen.dart';
 import 'screens/geo_fencing_screen.dart';
 import 'screens/test_map_screen.dart'; // ✅ new import
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -46,6 +53,7 @@ class MyApp extends StatelessWidget {
         home: const SplashScreen(),
         routes: {
           '/home': (context) => const HomeScreen(),
+          '/login': (context) => const LoginScreen(),
           '/tourist-id-registration': (context) =>
               const TouristIDRegistrationScreen(),
           '/tourist-id-details': (context) => const TouristIDDetailsScreen(),

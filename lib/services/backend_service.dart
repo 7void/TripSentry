@@ -1,20 +1,23 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tourist_record.dart';
 
 class BackendService {
   // Use the actual working URL from BackendMintService
-  static const String _baseUrl = 'http://172.20.189.61:3000/api';
-  static const String _apiKey = 'b74a90d9569eb50c5062bdfea78555c82696054b4de1fc224c622da6467358ba';
-  
+  static const String _baseUrl = 'http://172.20.188.199:3000/api';
+  static const String _apiKey =
+      'b74a90d9569eb50c5062bdfea78555c82696054b4de1fc224c622da6467358ba';
+
   static const String _applicationIdKey = 'tourist_application_id';
   static const String _touristHashKey = 'tourist_id_hash';
-  
+
   // Increased timeout for blockchain operations
   static const Duration _defaultTimeout = Duration(minutes: 8);
 
   late SharedPreferences _prefs;
+  // ignore: unused_field
   String? _authToken;
 
   Future<void> initialize() async {
@@ -26,7 +29,7 @@ class BackendService {
   Future<bool> checkHealth() async {
     try {
       print('Checking backend health...');
-      final url = Uri.parse('http://172.20.189.61:3000/health');
+      final url = Uri.parse('http://172.20.188.199:3000/health');
       final response = await http.get(url).timeout(
         Duration(seconds: 10),
         onTimeout: () {
@@ -34,7 +37,7 @@ class BackendService {
           return http.Response('timeout', 408);
         },
       );
-      
+
       print('Health check response: ${response.statusCode} - ${response.body}');
       return response.statusCode == 200;
     } catch (e) {
@@ -47,9 +50,7 @@ class BackendService {
   Future<Map<String, dynamic>> getBlockchainStatus() async {
     try {
       final url = Uri.parse('$_baseUrl/blockchain-status');
-      final headers = {
-        'x-api-key': _apiKey,
-      };
+      final headers = await _authHeaders();
 
       final response = await http.get(url, headers: headers).timeout(
         Duration(seconds: 30),
@@ -87,10 +88,7 @@ class BackendService {
 
       final url = Uri.parse('$_baseUrl/mint-id');
 
-      final headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': _apiKey,
-      };
+      final headers = await _authHeaders(contentTypeJson: true);
 
       final body = {
         'touristAddress': touristAddress,
@@ -104,11 +102,13 @@ class BackendService {
       print('Request headers: $headers');
       print('Request body: ${jsonEncode(body)}');
 
-      final response = await http.post(
+      final response = await http
+          .post(
         url,
         headers: headers,
         body: jsonEncode(body),
-      ).timeout(
+      )
+          .timeout(
         _defaultTimeout,
         onTimeout: () {
           throw Exception(
@@ -125,19 +125,20 @@ class BackendService {
         final responseData = jsonDecode(response.body);
         if (responseData['success'] == true) {
           print('Tourist ID created successfully!');
-          
+
           // Store the tourist hash and token ID locally
           final tokenId = responseData['data']['tokenId'].toString();
           await storeTouristHash(touristIdHash);
           await _prefs.setString('token_id', tokenId);
-          
+
           return {
             'success': true,
             'data': responseData['data'],
             'message': 'Tourist ID created successfully',
           };
         } else {
-          throw Exception('Backend error: ${responseData['error'] ?? 'Unknown backend error'}');
+          throw Exception(
+              'Backend error: ${responseData['error'] ?? 'Unknown backend error'}');
         }
       } else {
         return _handleErrorResponse(response);
@@ -147,19 +148,23 @@ class BackendService {
       throw Exception('Invalid response from server. Please try again.');
     } on http.ClientException catch (e) {
       print('Network error: $e');
-      throw Exception('Network connection failed. Please check your internet connection and try again.');
+      throw Exception(
+          'Network connection failed. Please check your internet connection and try again.');
     } catch (e) {
       print('Error creating Tourist ID: $e');
-      
+
       String errorMessage = e.toString();
       if (errorMessage.contains('Connection refused')) {
-        errorMessage = 'Cannot connect to backend server. Please ensure the server is running and accessible.';
+        errorMessage =
+            'Cannot connect to backend server. Please ensure the server is running and accessible.';
       } else if (errorMessage.contains('timeout')) {
-        errorMessage = 'Request timed out. Blockchain operations may take longer during high network activity. Please try again.';
+        errorMessage =
+            'Request timed out. Blockchain operations may take longer during high network activity. Please try again.';
       } else if (errorMessage.contains('SocketException')) {
-        errorMessage = 'Network error. Please check your connection and try again.';
+        errorMessage =
+            'Network error. Please check your connection and try again.';
       }
-      
+
       return {
         'success': false,
         'message': errorMessage,
@@ -171,9 +176,7 @@ class BackendService {
   Future<TouristRecord?> getTouristID(int tokenId) async {
     try {
       final url = Uri.parse('$_baseUrl/tourist-id/$tokenId');
-      final headers = {
-        'x-api-key': _apiKey,
-      };
+      final headers = await _authHeaders();
 
       print('Fetching tourist ID: $tokenId from $url');
 
@@ -223,9 +226,7 @@ class BackendService {
   }) async {
     try {
       final url = Uri.parse('$_baseUrl/tourist-ids?page=$page&limit=$limit');
-      final headers = {
-        'x-api-key': _apiKey,
-      };
+      final headers = await _authHeaders();
 
       final response = await http.get(url, headers: headers).timeout(
         Duration(seconds: 60),
@@ -253,7 +254,7 @@ class BackendService {
   }
 
   // Legacy methods for compatibility (these now just call the new methods)
-  
+
   // Submit tourist ID application (now creates the NFT directly)
   Future<Map<String, dynamic>> submitTouristIDApplication({
     required TouristMetadata metadata,
@@ -264,7 +265,7 @@ class BackendService {
   }) async {
     // Generate a hash for the tourist ID
     final touristIdHash = _generateTouristIdHash(metadata, identityDocument);
-    
+
     return await createTouristID(
       touristAddress: touristAddress,
       touristIdHash: touristIdHash,
@@ -274,7 +275,8 @@ class BackendService {
   }
 
   // Check application status (now checks NFT status)
-  Future<Map<String, dynamic>> checkApplicationStatus(String applicationId) async {
+  Future<Map<String, dynamic>> checkApplicationStatus(
+      String applicationId) async {
     try {
       // Try to parse applicationId as tokenId
       final tokenId = int.tryParse(applicationId);
@@ -314,22 +316,25 @@ class BackendService {
   // Helper method to handle error responses
   Map<String, dynamic> _handleErrorResponse(http.Response response) {
     String errorMessage = 'Failed to create Tourist ID';
-    
+
     if (response.statusCode == 408 || response.statusCode == 504) {
-      errorMessage = 'Request timeout. Blockchain operations may take longer during high network activity. Please try again in a few minutes.';
+      errorMessage =
+          'Request timeout. Blockchain operations may take longer during high network activity. Please try again in a few minutes.';
     } else if (response.statusCode == 429) {
       errorMessage = 'Rate limit exceeded. Please wait before trying again.';
     } else if (response.statusCode >= 500) {
-      errorMessage = 'Server error (${response.statusCode}). Please try again later.';
+      errorMessage =
+          'Server error (${response.statusCode}). Please try again later.';
     } else {
       try {
         final errorData = jsonDecode(response.body);
-        errorMessage = errorData['error'] ?? errorData['message'] ?? errorMessage;
+        errorMessage =
+            errorData['error'] ?? errorData['message'] ?? errorMessage;
       } catch (e) {
         // If we can't parse the error response, use the default message
       }
     }
-    
+
     return {
       'success': false,
       'message': errorMessage,
@@ -337,8 +342,10 @@ class BackendService {
   }
 
   // Generate tourist ID hash
-  String _generateTouristIdHash(TouristMetadata metadata, String identityDocument) {
-    final String combined = '${metadata.name}${metadata.passportNumber}${metadata.aadhaarHash}$identityDocument';
+  String _generateTouristIdHash(
+      TouristMetadata metadata, String identityDocument) {
+    final String combined =
+        '${metadata.name}${metadata.passportNumber}${metadata.aadhaarHash}$identityDocument';
     return combined.hashCode.abs().toString();
   }
 
@@ -373,5 +380,29 @@ class BackendService {
   void setAuthToken(String token) {
     _authToken = token;
     _prefs.setString('auth_token', token);
+  }
+
+  // Build headers with API key and optional Firebase ID token
+  Future<Map<String, String>> _authHeaders(
+      {bool contentTypeJson = false}) async {
+    final Map<String, String> headers = {
+      'x-api-key': _apiKey,
+    };
+    if (contentTypeJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final idToken = await user.getIdToken();
+        if (idToken != null && idToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $idToken';
+        }
+      } catch (_) {
+        // Ignore token errors; backend can still accept API key
+      }
+    }
+    return headers;
   }
 }
