@@ -45,37 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _register() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _error = e.message;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Registration failed: $e';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,24 +68,25 @@ class _LoginScreenState extends State<LoginScreen> {
             if (_error != null)
               Text(_error!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _signIn,
-                    child: _loading
-                        ? const CircularProgressIndicator()
-                        : const Text('Sign In'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading ? null : _register,
-                    child: const Text('Register'),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _signIn,
+                child: _loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Sign In'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _loading
+                  ? null
+                  : () =>
+                      Navigator.of(context).pushReplacementNamed('/register'),
+              child: const Text("Don't have an account? Register"),
             ),
           ],
         ),
@@ -124,4 +94,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

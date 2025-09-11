@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
@@ -45,6 +46,8 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
 
   bool _soundEnabled = true;
   late SharedPreferences _prefs;
+  StreamSubscription<geo.Position>? _positionSub;
+  bool _disposed = false;
 
   // Notifications
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -74,9 +77,9 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
   // Load toggle state
   Future<void> _loadPreferences() async {
     _prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _soundEnabled = _prefs.getBool('soundEnabled') ?? true;
-    });
+    if (!mounted) return;
+    _soundEnabled = _prefs.getBool('soundEnabled') ?? true;
+    setState(() {});
   }
 
   Future<void> _saveSoundPreference(bool value) async {
@@ -100,16 +103,19 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
       return Future.error('Location permissions are permanently denied.');
     }
 
-    geo.Geolocator.getPositionStream(
+    _positionSub?.cancel();
+    _positionSub = geo.Geolocator.getPositionStream(
       locationSettings: const geo.LocationSettings(
         accuracy: geo.LocationAccuracy.high,
         distanceFilter: 5,
       ),
     ).listen((geo.Position position) {
+      if (!mounted || _disposed) return;
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
         _updateMarker();
       });
+      if (!mounted || _disposed) return;
       _moveCameraToCurrentPosition();
       _checkUnsafeZones();
     });
@@ -117,50 +123,43 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
 
   // Add red and green geofence circles
   void _addGeofenceCircles() {
-    setState(() {
-      _circles.clear();
-
-      // Unsafe zones (red)
-      for (var zone in _unsafeZones) {
-        _circles.add(
-          Circle(
-            circleId: CircleId('unsafe_${zone.latitude}_${zone.longitude}'),
-            center: zone,
-            radius: _geoFenceRadius,
-            fillColor: Colors.red.withOpacity(0.3),
-            strokeColor: Colors.red,
-            strokeWidth: 2,
-          ),
-        );
-      }
-
-      // Safe zones (green)
-      for (var safeZone in _safezones) {
-        _circles.add(
-          Circle(
-            circleId: CircleId('safe_${safeZone.latitude}_${safeZone.longitude}'),
-            center: safeZone,
-            radius: _geoFenceRadius,
-            fillColor: Colors.green.withOpacity(0.1),
-            strokeColor: Colors.green,
-            strokeWidth: 2,
-          ),
-        );
-      }
-    });
+    _circles.clear();
+    for (var zone in _unsafeZones) {
+      _circles.add(
+        Circle(
+          circleId: CircleId('unsafe_${zone.latitude}_${zone.longitude}'),
+          center: zone,
+          radius: _geoFenceRadius,
+          fillColor: Colors.red.withOpacity(0.3),
+          strokeColor: Colors.red,
+          strokeWidth: 2,
+        ),
+      );
+    }
+    for (var safeZone in _safezones) {
+      _circles.add(
+        Circle(
+          circleId: CircleId('safe_${safeZone.latitude}_${safeZone.longitude}'),
+          center: safeZone,
+          radius: _geoFenceRadius,
+          fillColor: Colors.green.withOpacity(0.1),
+          strokeColor: Colors.green,
+          strokeWidth: 2,
+        ),
+      );
+    }
+  if (mounted && !_disposed) setState(() {});
   }
 
   void _updateMarker() {
-    setState(() {
-      _markers.clear();
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('currentLocation'),
-          position: _currentPosition,
-          infoWindow: const InfoWindow(title: 'You are here'),
-        ),
-      );
-    });
+    _markers.clear();
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('currentLocation'),
+        position: _currentPosition,
+        infoWindow: const InfoWindow(title: 'You are here'),
+      ),
+    );
   }
 
   void _moveCameraToCurrentPosition() {
@@ -270,9 +269,8 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
               Switch(
                 value: _soundEnabled,
                 onChanged: (val) {
-                  setState(() {
-                    _soundEnabled = val;
-                  });
+                  _soundEnabled = val;
+                  if (mounted && !_disposed) setState(() {});
                   _saveSoundPreference(val);
                 },
               ),
@@ -291,17 +289,24 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
           _moveCameraToCurrentPosition();
         },
         onLongPress: (position) {
-          // Add new safe zone on long press
-          setState(() {
-            _safezones.add(position);
-            _addGeofenceCircles();
-            _startBackgroundGeofencing();
-          });
+          _safezones.add(position);
+          _addGeofenceCircles();
+          _startBackgroundGeofencing();
+          if (mounted && !_disposed) setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Safe zone added!'), backgroundColor: Colors.green),
           );
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+  _disposed = true;
+    _positionSub?.cancel();
+    geofenceService.stop();
+    _mapController?.dispose();
+    super.dispose();
   }
 }

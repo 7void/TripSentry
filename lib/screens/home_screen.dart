@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
 
@@ -49,6 +50,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.delete_forever, color: Colors.red),
                     SizedBox(width: 8),
                     Text('Clear Data', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Logout'),
                   ],
                 ),
               ),
@@ -397,7 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  void _handleMenuAction(BuildContext context, String action) {
+  Future<void> _handleMenuAction(BuildContext context, String action) async {
     final blockchainProvider =
         Provider.of<BlockchainProvider>(context, listen: false);
 
@@ -407,6 +418,15 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       case 'clear_data':
         _showClearDataDialog(context, blockchainProvider);
+        break;
+      case 'logout':
+        try {
+          await FirebaseAuth.instance.signOut();
+        } finally {
+          if (context.mounted) {
+            Navigator.of(context).pushReplacementNamed('/login');
+          }
+        }
         break;
     }
   }
