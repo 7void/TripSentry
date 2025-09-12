@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
+// removed realtime database imports
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -12,10 +11,7 @@ class LocationService {
 
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
-  late final FirebaseDatabase _rtdb = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL: 'https://touristapp-2941f-default-rtdb.asia-southeast1.firebasedatabase.app',
-  );
+  // realtime database removed
 
   StreamSubscription<User?>? _authSub;
   Timer? _timer;
@@ -50,15 +46,10 @@ class LocationService {
     if (_uid == null) return;
     try {
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      await _rtdb.ref('liveLocations/$_uid').set({
-        'latitude': pos.latitude,
-        'longitude': pos.longitude,
-        'timestamp': ServerValue.timestamp,
-      });
       await _firestore.collection('users').doc(_uid!).set({
         'lastKnownLocation': {
-          'lat': pos.latitude,
-          'lng': pos.longitude,
+          'latitude': pos.latitude,
+          'longitude': pos.longitude,
           'timestamp': FieldValue.serverTimestamp(),
         }
       }, SetOptions(merge: true));
