@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
+import '../services/location_service_helper.dart';
+import '../utils/permission_utils.dart'; // ✅ added import
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -30,7 +32,13 @@ class _SplashScreenState extends State<SplashScreen> {
         return;
       }
 
-      // If authenticated, initialize app services then go home
+      // ✅ Request permissions before starting service
+      final granted = await PermissionUtils.requestLocationPermissions();
+      if (granted) {
+        await LocationServiceHelper.startService();
+      }
+
+      // Initialize other services
       final blockchainProvider =
           Provider.of<BlockchainProvider>(context, listen: false);
       await blockchainProvider.initialize();
@@ -38,7 +46,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
     } catch (e, st) {
-      // Log error and navigate to an error/fallback screen (adjust as needed)
+      // Log error and navigate to an error/fallback screen
       debugPrint('Error during app initialization: $e\n$st');
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/error');

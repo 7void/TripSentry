@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/location_service_helper.dart';
+import '../utils/permission_utils.dart'; // ✅ added import
+import 'dart:async';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,6 +18,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
+
+  Future<void> _initTracking() async {
+    try {
+      final granted = await PermissionUtils.requestLocationPermissions();
+      if (granted) {
+        await LocationServiceHelper.startService();
+      }
+    } catch (_) {
+      // Swallow to not impact UX
+    }
+  }
 
   Future<void> _register() async {
     final name = _nameController.text.trim();
@@ -53,9 +67,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
 
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/home');
+      // Start tracking in background after navigation
+      // ignore: discarded_futures
+      _initTracking();
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -103,7 +119,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Register'),
                 ),
               ),

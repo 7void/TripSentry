@@ -53,10 +53,18 @@ tasks.withType<KotlinCompile>().configureEach {
 }
 
 dependencies {
+    // AndroidX core and appcompat
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+
     // ✅ Google Maps & Location services
     implementation("com.google.android.gms:play-services-maps:18.1.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
 
     // ✅ Desugaring for Java 17
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
+    // ✅ Firebase Auth & Firestore SDK
+    implementation("com.google.firebase:firebase-auth:22.3.1")
+    implementation("com.google.firebase:firebase-firestore:25.0.0")
 }

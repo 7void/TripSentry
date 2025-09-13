@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
+import '../services/location_service_helper.dart'; // ✅ added import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -311,11 +312,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     Icons.map,
                     'Test Map',
-                    () => Navigator.of(context).pushNamed('/test-map'), // ✅
+                    () => Navigator.of(context).pushNamed('/test-map'),
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(child: SizedBox()), // filler
+                const Expanded(child: SizedBox()),
               ],
             ),
           ],
@@ -422,6 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'logout':
         try {
           await FirebaseAuth.instance.signOut();
+          await LocationServiceHelper.stopService(); // ✅ stop background tracking
         } finally {
           if (context.mounted) {
             Navigator.of(context).pushReplacementNamed('/login');

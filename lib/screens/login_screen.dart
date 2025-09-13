@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/location_service_helper.dart';
+import '../utils/permission_utils.dart'; // ✅ added import
+import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +17,17 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _error;
 
+  Future<void> _initTracking() async {
+    try {
+      final granted = await PermissionUtils.requestLocationPermissions();
+      if (granted) {
+        await LocationServiceHelper.startService();
+      }
+    } catch (_) {
+      // Swallow errors to avoid blocking login UX
+    }
+  }
+
   Future<void> _signIn() async {
     setState(() {
       _loading = true;
@@ -25,9 +39,12 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
+      if (!mounted) return;
+      // Navigate immediately — don't block on permissions/service start
+      Navigator.of(context).pushReplacementNamed('/home');
+      // Kick off tracking initialization in background
+      // ignore: discarded_futures
+      _initTracking();
     } on FirebaseAuthException catch (e) {
       setState(() {
         _error = e.message;
@@ -76,7 +93,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text('Sign In'),
               ),
             ),
