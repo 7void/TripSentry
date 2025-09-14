@@ -35,7 +35,7 @@ class _SplashScreenState extends State<SplashScreen> {
       // ✅ Request permissions before starting service
       final granted = await PermissionUtils.requestLocationPermissions();
       if (granted) {
-        await LocationServiceHelper.startService();
+        await LocationServiceHelper.startServiceIfAllowed();
       }
 
       // Initialize other services
