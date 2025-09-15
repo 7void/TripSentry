@@ -23,7 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final granted = await PermissionUtils.requestLocationPermissions();
       if (granted) {
-        await LocationServiceHelper.startService();
+        await LocationServiceHelper.startServiceIfAllowed();
       }
     } catch (_) {
       // Swallow to not impact UX

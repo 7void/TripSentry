@@ -21,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final granted = await PermissionUtils.requestLocationPermissions();
       if (granted) {
-        await LocationServiceHelper.startService();
+        await LocationServiceHelper.startServiceIfAllowed();
       }
     } catch (_) {
       // Swallow errors to avoid blocking login UX
