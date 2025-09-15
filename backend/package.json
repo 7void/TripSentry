@@ -20,6 +20,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.0-rc.4",
     "web3": "^4.3.0",
+    "firebase-admin": "^12.5.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {

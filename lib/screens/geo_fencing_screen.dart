@@ -7,6 +7,7 @@ import 'package:geofence_service/geofence_service.dart' as gf;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/alert_service.dart';
 
 class GeoFencingScreen extends StatefulWidget {
   const GeoFencingScreen({super.key});
@@ -23,15 +24,18 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
 
   // Safe zones
   final List<LatLng> _safezones = [
-    LatLng(13.0827, 80.2707), // example
+    const LatLng(13.0827, 80.2707), // example
   ];
 
   // Unsafe zones (red)
   final List<LatLng> _unsafeZones = [
-    LatLng(12.844696702391772, 80.15377363276492),
+    const LatLng(12.844254, 80.151632),
   ];
 
-  final double _geoFenceRadius = 200.0; // meters
+  final double _geoFenceRadius = 115.0; // meters
+
+  // Helper to standardize zone id formatting (prevents duplicates with differing string forms)
+  String formatZoneId(LatLng zone) => 'zone_${zone.latitude.toStringAsFixed(6)}_${zone.longitude.toStringAsFixed(6)}';
 
   // Geofence service
   final gf.GeofenceService geofenceService = gf.GeofenceService.instance.setup(
@@ -116,8 +120,8 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
         _updateMarker();
       });
       if (!mounted || _disposed) return;
-      _moveCameraToCurrentPosition();
-      _checkUnsafeZones();
+  _moveCameraToCurrentPosition();
+  // Removed manual _checkUnsafeZones() to avoid duplicate alert creation; relying on geofence ENTER events.
     });
   }
 
@@ -172,21 +176,7 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
     }
   }
 
-  // Check unsafe zone entry
-  void _checkUnsafeZones() {
-    for (var zone in _unsafeZones) {
-      double distance = geo.Geolocator.distanceBetween(
-        _currentPosition.latitude,
-        _currentPosition.longitude,
-        zone.latitude,
-        zone.longitude,
-      );
-      if (distance <= _geoFenceRadius) {
-        _showNotification("⚠️ Alert", "You entered an unsafe zone!");
-        break;
-      }
-    }
-  }
+  // Removed distance-based unsafe zone polling alert method (was _checkUnsafeZones) to ensure single source of truth.
 
   Future<void> _startBackgroundGeofencing() async {
     final status = await Permission.locationAlways.status;
@@ -199,8 +189,8 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
     }
 
     final List<gf.Geofence> geofenceList = [
-      ..._unsafeZones.map((zone) => gf.Geofence(
-            id: zone.toString(),
+  ..._unsafeZones.map((zone) => gf.Geofence(
+    id: formatZoneId(zone),
             latitude: zone.latitude,
             longitude: zone.longitude,
             radius: [gf.GeofenceRadius(id: 'r1', length: _geoFenceRadius)],
@@ -215,18 +205,67 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
 
     geofenceService.addGeofenceStatusChangeListener(
       (gf.Geofence geofence, gf.GeofenceRadius radius, gf.GeofenceStatus status, gf.Location location) async {
+        // We treat only unsafe zones (those we created with id prefix 'zone_') as alert-producing.
+        final bool isUnsafeZone = geofence.id.startsWith('zone_');
         if (status == gf.GeofenceStatus.ENTER) {
-          await _showNotification("⚠️ Geofence Alert", "You entered ${geofence.id}");
+          if (isUnsafeZone) {
+            await _showNotification("⚠️ Entered Unsafe Zone", "You entered ${geofence.id}");
+            AlertService.instance.createGeofencingAlert(
+              zoneId: geofence.id,
+              latitude: location.latitude,
+              longitude: location.longitude,
+            );
+          } else {
+            // Optional: different notification for entering a safe zone (can be muted or removed later)
+            await _showNotification("ℹ️ Entered Safe Zone", "You entered a designated safe area");
+          }
         } else if (status == gf.GeofenceStatus.EXIT) {
-          await _showNotification("✅ Geofence Safe", "You exited ${geofence.id}");
+          if (isUnsafeZone) {
+            // Resolve the existing alert (if any) when the user leaves the unsafe zone so re-entry can trigger a fresh one.
+            AlertService.instance.resolveGeofencingAlert(geofence.id);
+            await _showNotification("✅ Left Unsafe Zone", "You exited ${geofence.id}");
+          } else {
+            await _showNotification("ℹ️ Left Safe Zone", "You left a safe area");
+          }
         }
       },
     );
 
+
+
+  // (kept older reference placeholder removed)
     try {
       await geofenceService.start(geofenceList);
+      // After starting, immediately evaluate if current position already lies within any unsafe zone.
+      await _evaluateInitialInside();
     } catch (e) {
       debugPrint('Start failed: $e');
+    }
+  }
+
+  Future<void> _evaluateInitialInside() async {
+    // If user is already inside an unsafe geofence when the service starts, ENTER may not fire.
+    // We manually check distance once and create an alert if needed (without spamming duplicates).
+    if (_unsafeZones.isEmpty) return;
+    final pos = _currentPosition;
+    for (final zone in _unsafeZones) {
+      final distance = geo.Geolocator.distanceBetween(
+        pos.latitude,
+        pos.longitude,
+        zone.latitude,
+        zone.longitude,
+      );
+      if (distance <= _geoFenceRadius) {
+        final zoneId = formatZoneId(zone);
+        debugPrint('[Geofence] Already inside zone $zoneId at startup; creating alert if not existing.');
+        AlertService.instance.createGeofencingAlert(
+          zoneId: zoneId,
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+        );
+        await _showNotification("⚠️ Geofence Alert", "You are inside ${zoneId}");
+        break; // only handle first matching zone
+      }
     }
   }
 

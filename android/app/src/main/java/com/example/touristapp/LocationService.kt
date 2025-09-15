@@ -26,9 +26,9 @@ class LocationService : Service() {
         // Request location every 5 seconds
         locationRequest = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
-            5000L
+            10000L
         )
-            .setMinUpdateIntervalMillis(3000L)
+            .setMinUpdateIntervalMillis(8000L)
             .build()
 
         // ✅ Stop service automatically if user logs out

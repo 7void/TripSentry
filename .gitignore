@@ -144,3 +144,6 @@ temp/
 .env.development.local
 .env.local
 .env.*.local
+
+firebase_options.dart
+firestore_rules

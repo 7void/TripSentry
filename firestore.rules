@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Utility functions
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isPolice() { return isSignedIn() && request.auth.token.role == 'police'; }
+
+    // USERS root documents
+    match /users/{uid} {
+      // Preserve original: owner OR police can read, only owner can write
+      allow read: if isOwner(uid) || isPolice();
+      allow write: if isOwner(uid);
+
+      // Nested alerts hierarchy: users/{uid}/alerts/{state}/items/{alertId}
+      // states: active | past (or others in future)
+      match /alerts/{state}/{subPath=**} {
+        // Owner full access; police read-only (no modifications)
+        allow read: if isOwner(uid) || isPolice();
+        allow create, update, delete: if isOwner(uid);
+      }
+
+      // (Optional) If you later store other subcollections under users/{uid}, they remain locked by fallback unless added explicitly.
+    }
+
+    // Fallback deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
