@@ -14,6 +14,7 @@ import 'screens/error_screen.dart';
 import 'screens/geo_fencing_screen.dart';
 import 'screens/test_map_screen.dart';
 import 'screens/chat_screen.dart'; // ✅ chatbot screen import
+import 'screens/emergency_countdown_screen.dart';
 import 'services/location_service.dart';
 import 'services/geofence_background_service.dart';
 
@@ -78,6 +79,7 @@ class MyApp extends StatelessWidget {
           '/geo-fencing': (context) => const GeoFencingScreen(),
           '/test-map': (context) => const TestMapScreen(),
           '/chat': (context) => const ChatScreen(), // ✅ chatbot route
+          '/emergency': (context) => const EmergencyCountdownScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),

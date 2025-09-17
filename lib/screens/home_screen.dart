@@ -562,7 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     Icons.emergency,
                     'Emergency',
-                    () => _showComingSoon(context),
+                    () => Navigator.of(context).pushNamed('/emergency'),
                   ),
                 ),
               ],

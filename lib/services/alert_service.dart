@@ -153,4 +153,52 @@ class AlertService {
       _inFlight = false;
     }
   }
+
+  /// Create an immediate emergency alert under users/{uid}/alerts/active/items
+  /// The payload mirrors other alerts with:
+  /// - type: 'emergency'
+  /// - triggeredAt: server timestamp
+  /// - resolvedAt: null
+  /// - location: { latitude, longitude } if provided
+  /// - extra: optional map for additional context
+  Future<void> createEmergencyAlert({
+    double? latitude,
+    double? longitude,
+    Map<String, dynamic>? extra,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      debugPrint('[AlertService] Skipped createEmergencyAlert – no authenticated user.');
+      return;
+    }
+
+    final activeItems = _fs
+        .collection('users')
+        .doc(user.uid)
+        .collection('alerts')
+        .doc('active')
+        .collection('items');
+
+    try {
+      final payload = <String, dynamic>{
+        'type': 'emergency',
+        'triggeredAt': FieldValue.serverTimestamp(),
+        'resolvedAt': null,
+      };
+      if (latitude != null && longitude != null) {
+        payload['location'] = {
+          'latitude': latitude,
+          'longitude': longitude,
+        };
+      }
+      if (extra != null && extra.isNotEmpty) {
+        payload['extra'] = extra;
+      }
+      final docRef = await activeItems.add(payload);
+      debugPrint('[AlertService] Emergency alert created with id=${docRef.id}');
+    } catch (e, st) {
+      debugPrint('[AlertService] ERROR creating emergency alert: $e');
+      debugPrint(st.toString());
+    }
+  }
 }
