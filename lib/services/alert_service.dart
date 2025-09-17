@@ -13,6 +13,8 @@ class AlertService {
   final Duration debounce = const Duration(minutes: 2);
   bool _inFlight = false; // simple in-memory mutex for concurrent triggers
   final Duration staleThreshold = const Duration(minutes: 5);
+  // Keep track of most recent active alert docId per zone to enable fast resolution without query.
+  final Map<String, String> _activeZoneAlertDocIds = {}; // zoneId -> docId
 
   /// Resolve (archive) an existing active geofencing alert for a given zone.
   Future<void> resolveGeofencingAlert(String zoneId) async {
@@ -25,17 +27,39 @@ class AlertService {
         .doc('active')
         .collection('items');
     try {
-      final snapshot = await activeItems
-          .where('type', isEqualTo: 'geofencing')
-          .where('extra.zoneId', isEqualTo: zoneId)
-          .where('resolvedAt', isNull: true)
-          .limit(1)
-          .get();
-      if (snapshot.docs.isEmpty) return;
-      await snapshot.docs.first.reference.update({
-        'resolvedAt': FieldValue.serverTimestamp(),
-      });
-      debugPrint('[AlertService] Resolved geofence alert zoneId=$zoneId');
+      // Prefer direct doc update if we have it cached.
+      if (_activeZoneAlertDocIds.containsKey(zoneId)) {
+        final docId = _activeZoneAlertDocIds[zoneId]!;
+        final docRef = activeItems.doc(docId);
+        final snap = await docRef.get();
+        if (snap.exists) {
+          final data = snap.data();
+          if (data != null && data['resolvedAt'] == null) {
+            await docRef.update({'resolvedAt': FieldValue.serverTimestamp()});
+            debugPrint('[AlertService] Resolved (cached) geofence alert zoneId=$zoneId docId=$docId');
+          } else {
+            debugPrint('[AlertService] Cached alert already resolved or missing field zoneId=$zoneId');
+          }
+        } else {
+          debugPrint('[AlertService] Cached docId not found; falling back to query zoneId=$zoneId');
+          _activeZoneAlertDocIds.remove(zoneId);
+        }
+      }
+
+      if (!_activeZoneAlertDocIds.containsKey(zoneId)) {
+        final snapshot = await activeItems
+            .where('type', isEqualTo: 'geofencing')
+            .where('extra.zoneId', isEqualTo: zoneId)
+            .where('resolvedAt', isNull: true)
+            .limit(1)
+            .get();
+        if (snapshot.docs.isEmpty) return;
+        await snapshot.docs.first.reference.update({
+          'resolvedAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('[AlertService] Resolved (queried) geofence alert zoneId=$zoneId');
+        _activeZoneAlertDocIds.remove(zoneId); // remove mapping to avoid stale reference
+      }
     } catch (e) {
       debugPrint('[AlertService] ERROR resolving geofence alert: $e');
     }
@@ -121,6 +145,7 @@ class AlertService {
       debugPrint('[AlertService] Geofence alert created with id=${docRef.id}');
       _lastZoneId = zoneId;
       _lastGeofenceAlertTime = now;
+      _activeZoneAlertDocIds[zoneId] = docRef.id; // cache for fast resolution
     } catch (e, st) {
       debugPrint('[AlertService] ERROR creating geofence alert: $e');
       debugPrint(st.toString());

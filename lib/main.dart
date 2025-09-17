@@ -15,6 +15,7 @@ import 'screens/geo_fencing_screen.dart';
 import 'screens/test_map_screen.dart';
 import 'screens/chat_screen.dart'; // ✅ chatbot screen import
 import 'services/location_service.dart';
+import 'services/geofence_background_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,7 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   LocationService().init();
+  await GeofenceBackgroundService.instance.init();
   runApp(const MyApp());
 }
 

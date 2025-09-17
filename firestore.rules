@@ -16,9 +16,23 @@ service cloud.firestore {
       // Nested alerts hierarchy: users/{uid}/alerts/{state}/items/{alertId}
       // states: active | past (or others in future)
       match /alerts/{state}/{subPath=**} {
-        // Owner full access; police read-only (no modifications)
+        // Police can read; owner can read
         allow read: if isOwner(uid) || isPolice();
-        allow create, update, delete: if isOwner(uid);
+        
+        // Owner can create only under 'active'
+        allow create: if isOwner(uid) && state == 'active';
+
+        // Owner can resolve an active alert by setting resolvedAt; keep other fields immutable
+        allow update: if isOwner(uid) && state == 'active'
+                      && resource.data.resolvedAt == null
+                      && request.resource.data.resolvedAt is timestamp
+                      && request.resource.data.type == resource.data.type
+                      && request.resource.data.location == resource.data.location
+                      && request.resource.data.extra == resource.data.extra
+                      && request.resource.data.triggeredAt == resource.data.triggeredAt;
+
+        // Disallow deletes by default (adjust if you need an archive/cleanup flow)
+        allow delete: if false;
       }
 
       // (Optional) If you later store other subcollections under users/{uid}, they remain locked by fallback unless added explicitly.

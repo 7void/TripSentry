@@ -509,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'You don\'t have an active Tourist ID yet. Create one to enjoy a secure and verified travel experiences.',
+              'You don\'t have an active Tourist ID yet. Create one to enjoy a secure and verified travel experience.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey.shade600,
                   ),
