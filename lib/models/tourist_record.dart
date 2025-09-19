@@ -1,5 +1,4 @@
 // Updated TouristRecord model to match the enhanced smart contract
-import 'package:web3dart/web3dart.dart';
 
 // Tourist metadata class
 class TouristMetadata {
@@ -66,23 +65,22 @@ class TouristRecord {
   final String touristIdHash;
   final String metadataCID;
   final DateTime validUntil;
-  final bool isActive;
-  final String touristAddress;
-  final DateTime issuedAt; // New field
-  final String issuerInfo; // New field
+  final String touristAddress; // fetched via ownerOf
+  final String issuerInfo;
+  final DateTime? issuedAt; // optional (derived from block timestamp if backend supplies)
 
   TouristRecord({
     required this.touristIdHash,
     required this.metadataCID,
     required this.validUntil,
-    required this.isActive,
     required this.touristAddress,
-    required this.issuedAt,
     required this.issuerInfo,
+    this.issuedAt,
   });
 
-  bool get isValid => isActive && DateTime.now().isBefore(validUntil);
-  bool get isExpired => DateTime.now().isAfter(validUntil);
+  bool get isActive => DateTime.now().isBefore(validUntil);
+  bool get isValid => isActive; // simplified semantics
+  bool get isExpired => !isActive;
 
   int get daysUntilExpiry {
     if (isExpired) return 0;
@@ -90,23 +88,15 @@ class TouristRecord {
   }
 
   // Create from smart contract response
-  factory TouristRecord.fromList(List<dynamic> data) {
+  factory TouristRecord.fromList(List<dynamic> data, {String touristAddress = ''}) {
+    // Simplified contract tuple: [touristIdHash, validUntil, metadataCID, issuerInfo]
     return TouristRecord(
       touristIdHash: data[0].toString(),
-      metadataCID: data[1].toString(),
-      validUntil: DateTime.fromMillisecondsSinceEpoch(
-        (data[2] as BigInt).toInt() *
-            1000, // Convert from seconds to milliseconds
-      ),
-      isActive: data[3] as bool,
-      touristAddress: data[4] is EthereumAddress
-          ? (data[4] as EthereumAddress).hex
-          : data[4].toString(),
-      issuedAt: DateTime.fromMillisecondsSinceEpoch(
-        (data[5] as BigInt).toInt() *
-            1000, // Convert from seconds to milliseconds
-      ),
-      issuerInfo: data[6].toString(),
+      validUntil: DateTime.fromMillisecondsSinceEpoch(((data[1] as BigInt).toInt()) * 1000),
+      metadataCID: data[2].toString(),
+      issuerInfo: data[3].toString(),
+      touristAddress: touristAddress,
+      issuedAt: null,
     );
   }
 
@@ -118,7 +108,7 @@ class TouristRecord {
       'validUntil': validUntil.toIso8601String(),
       'isActive': isActive,
       'touristAddress': touristAddress,
-      'issuedAt': issuedAt.toIso8601String(),
+      if (issuedAt != null) 'issuedAt': issuedAt!.toIso8601String(),
       'issuerInfo': issuerInfo,
     };
   }
@@ -129,10 +119,9 @@ class TouristRecord {
       touristIdHash: json['touristIdHash'] ?? '',
       metadataCID: json['metadataCID'] ?? '',
       validUntil: DateTime.parse(json['validUntil']),
-      isActive: json['isActive'] ?? false,
       touristAddress: json['touristAddress'] ?? '',
-      issuedAt: DateTime.parse(json['issuedAt']),
       issuerInfo: json['issuerInfo'] ?? '',
+      issuedAt: json['issuedAt'] != null ? DateTime.parse(json['issuedAt']) : null,
     );
   }
 
@@ -141,7 +130,6 @@ class TouristRecord {
     String? touristIdHash,
     String? metadataCID,
     DateTime? validUntil,
-    bool? isActive,
     String? touristAddress,
     DateTime? issuedAt,
     String? issuerInfo,
@@ -150,7 +138,6 @@ class TouristRecord {
       touristIdHash: touristIdHash ?? this.touristIdHash,
       metadataCID: metadataCID ?? this.metadataCID,
       validUntil: validUntil ?? this.validUntil,
-      isActive: isActive ?? this.isActive,
       touristAddress: touristAddress ?? this.touristAddress,
       issuedAt: issuedAt ?? this.issuedAt,
       issuerInfo: issuerInfo ?? this.issuerInfo,
@@ -159,20 +146,19 @@ class TouristRecord {
 
   @override
   String toString() {
-    return 'TouristRecord(touristIdHash: $touristIdHash, metadataCID: $metadataCID, validUntil: $validUntil, isActive: $isActive, touristAddress: $touristAddress, issuedAt: $issuedAt, issuerInfo: $issuerInfo)';
+    return 'TouristRecord(touristIdHash: $touristIdHash, metadataCID: $metadataCID, validUntil: $validUntil, touristAddress: $touristAddress, issuedAt: $issuedAt, issuerInfo: $issuerInfo)';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is TouristRecord &&
-        other.touristIdHash == touristIdHash &&
-        other.metadataCID == metadataCID &&
-        other.validUntil == validUntil &&
-        other.isActive == isActive &&
-        other.touristAddress == touristAddress &&
-        other.issuedAt == issuedAt &&
-        other.issuerInfo == issuerInfo;
+  return other is TouristRecord &&
+    other.touristIdHash == touristIdHash &&
+    other.metadataCID == metadataCID &&
+    other.validUntil == validUntil &&
+    other.touristAddress == touristAddress &&
+    other.issuedAt == issuedAt &&
+    other.issuerInfo == issuerInfo;
   }
 
   @override
@@ -181,7 +167,6 @@ class TouristRecord {
       touristIdHash,
       metadataCID,
       validUntil,
-      isActive,
       touristAddress,
       issuedAt,
       issuerInfo,

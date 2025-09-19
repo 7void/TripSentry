@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
 import '../services/location_service_helper.dart';
 import '../utils/permission_utils.dart'; // ✅ added import
+import '../services/user_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -42,6 +43,10 @@ class _SplashScreenState extends State<SplashScreen> {
       final blockchainProvider =
           Provider.of<BlockchainProvider>(context, listen: false);
       await blockchainProvider.initialize();
+
+    // Preload user's blockchainId (non-blocking)
+    // ignore: discarded_futures
+    UserService.fetchBlockchainIdOnce();
 
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');

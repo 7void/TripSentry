@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/location_service_helper.dart';
+import '../services/user_service.dart';
 import '../utils/permission_utils.dart'; // ✅ added import
 import 'dart:async';
 
@@ -39,6 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      // Ensure Firestore has blockchainId field for this user (non-blocking for UX)
+      // ignore: discarded_futures
+      UserService.ensureBlockchainIdOnLogin();
       if (!mounted) return;
       // Navigate immediately — don't block on permissions/service start
       Navigator.of(context).pushReplacementNamed('/home');

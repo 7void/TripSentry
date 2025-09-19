@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\Users\\soham\\OneDrive\\Desktop\\touristapp\\backend\\logs\\.b65b819392f4d8f2e19b0b0521e10cb90a230cf0-audit.json",
+    "files": [
+        {
+            "date": 1758203085185,
+            "name": "C:\\Users\\soham\\OneDrive\\Desktop\\touristapp\\backend\\logs\\error-2025-09-18.log",
+            "hash": "842ef208d2a9f74e5cdaf1ccbae076edcbbf55feeb6d345a01815af258bca1e1"
+        },
+        {
+            "date": 1758227627815,
+            "name": "C:\\Users\\soham\\OneDrive\\Desktop\\touristapp\\backend\\logs\\error-2025-09-19.log",
+            "hash": "38c59e396fab6527d4fb7825d99eddb93c46999b82e1ea6fbdaff83fb327d41d"
+        }
+    ],
+    "hashType": "sha256"
+}

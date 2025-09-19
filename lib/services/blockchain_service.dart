@@ -3,100 +3,119 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 import 'package:web3dart/web3dart.dart';
-import 'package:convert/convert.dart' as convert;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/tourist_record.dart';
 
 class BlockchainService {
-  static const String _rpcUrl =
-      'https://eth-sepolia.g.alchemy.com/v2/-RGNirb5XtTS_mKCFbeMY';
-  static const String _contractAddress =
-      '0x8d95bbd64547caf83bfa6af67b522ec6d1450a85';
-  static const int _chainId = 11155111;
+  // Loaded from environment (.env) to stay in sync with backend
+  late String _rpcUrl; // reassignable to avoid late-final reinit errors
+  late String _contractAddress;
+  late int _chainId;
+  bool _initializing = false; // prevents concurrent initialization of late finals
 
   late Web3Client _client;
-  late DeployedContract _contract;
+  late DeployedContract _contract; // Assigned only if ABI loads successfully
+  bool _contractLoaded = false; // Tracks whether contract + functions were set
 
   // Existing functions
-  late ContractFunction _mintTouristID;
   late ContractFunction _getTouristRecord;
-  late ContractFunction _updateMetadata;
   late ContractFunction _isValidTouristID;
-  late ContractFunction _isExpired;
-  late ContractFunction _getTokenIdByTouristHash;
-  late ContractFunction _deleteExpiredTouristID;
-  late ContractFunction _totalActiveIDs;
   late ContractFunction _balanceOf;
   late ContractFunction _ownerOf;
-  late ContractFunction _forceDeleteTouristID;
-  late ContractFunction _batchDeleteExpired;
-
-  // New functions for enhanced contract
-  late ContractFunction _getTouristOf;
-  late ContractFunction _getTokenOfTourist;
-  late ContractFunction _getAllTokenIds;
-  late ContractFunction _getAllActiveTouristIDs;
-  late ContractFunction _setCentralWallet;
+  late ContractFunction _contractOwner; // Ownable.owner()
+  // Note: Advanced functions not present in current ABI are intentionally not declared
+  // Removed setCentralWallet; contract does not expose this in current ABI
 
   // Contract state variables
-  late ContractFunction _centralWallet;
+  // No central wallet in current contract; removed
 
   static final BlockchainService _instance = BlockchainService._internal();
   factory BlockchainService() => _instance;
   BlockchainService._internal();
 
   Future<void> initialize() async {
-    _client = Web3Client(_rpcUrl, Client());
-    await _loadContract();
+    if (_contractLoaded) return; // already good
+    if (_initializing) {
+      // Another caller is already initializing; wait until done
+      while (_initializing) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      return; // After wait, either loaded or will retry on next call
+    }
+
+    _initializing = true;
+    try {
+      // Only set late finals once
+      _rpcUrl = dotenv.env['RPC_URL']?.trim() ?? '';
+      _contractAddress = dotenv.env['CONTRACT_ADDRESS']?.trim() ?? '';
+      final chainIdStr = dotenv.env['CHAIN_ID']?.trim();
+      _chainId = int.tryParse(chainIdStr ?? '') ?? 11155111; // default to Sepolia
+
+      if (_rpcUrl.isEmpty) {
+        print('[BlockchainService] ERROR: RPC_URL missing in .env');
+      }
+      if (_contractAddress.isEmpty) {
+        print('[BlockchainService] WARNING: CONTRACT_ADDRESS missing in .env');
+      }
+      print('[BlockchainService] Using RPC=$_rpcUrl contract=$_contractAddress chainId=$_chainId');
+      _client = Web3Client(_rpcUrl, Client());
+      await _loadContract();
+    } finally {
+      _initializing = false;
+    }
+  }
+
+  Future<bool> ensureInitialized() async {
+    if (!_contractLoaded) {
+      await initialize();
+    }
+    return _contractLoaded;
   }
 
   Future<void> _loadContract() async {
     try {
-      final abiString =
-          await rootBundle.loadString('assets/contracts/TouristID.json');
-      final abi = jsonDecode(abiString) as List<dynamic>;
+    final abiString =
+      await rootBundle.loadString('assets/contracts/TouristID.json');
+
+    // Support both raw ABI array OR full artifact (with an 'abi' field)
+    final decoded = jsonDecode(abiString);
+    final abi = decoded is List
+      ? decoded
+      : (decoded is Map && decoded['abi'] is List
+        ? decoded['abi']
+        : throw Exception('ABI format not recognized in TouristID.json')) as List<dynamic>;
 
       _contract = DeployedContract(
         ContractAbi.fromJson(jsonEncode(abi), 'TouristID'),
         EthereumAddress.fromHex(_contractAddress),
       );
 
-      // Existing functions
-      _mintTouristID = _contract.function('mintTouristID');
-      _getTouristRecord = _contract.function('getTouristRecord');
-      _updateMetadata = _contract.function('updateMetadata');
-      _isValidTouristID = _contract.function('isValidTouristID');
-      _isExpired = _contract.function('isExpired');
-      _getTokenIdByTouristHash = _contract.function('getTokenIdByTouristHash');
-      _deleteExpiredTouristID = _contract.function('deleteExpiredTouristID');
-      _totalActiveIDs = _contract.function('totalActiveIDs');
-      _balanceOf = _contract.function('balanceOf');
-      _ownerOf = _contract.function('ownerOf');
-      _forceDeleteTouristID = _contract.function('forceDeleteTouristID');
-      _batchDeleteExpired = _contract.function('batchDeleteExpired');
+  // Functions present in current contract
+  _getTouristRecord = _contract.function('getTouristRecord');
+  _isValidTouristID = _contract.function('isValid');
+  _balanceOf = _contract.function('balanceOf');
+  _ownerOf = _contract.function('ownerOf');
+      // Ownable owner function for resolving issuer (optional in some ABI bundles)
+      try {
+        _contractOwner = _contract.function('owner');
+      } catch (_) {
+        // owner() may be missing in ABI file; fallback will be disabled
+        print('[BlockchainService] owner() not found in ABI');
+      }
+  // Skip non-existent advanced functions in this version
+  // No setCentralWallet or centralWallet in current contract version
 
-      // New functions for enhanced contract
-      _getTouristOf = _contract.function('getTouristOf');
-      _getTokenOfTourist = _contract.function('getTokenOfTourist');
-      _getAllTokenIds = _contract.function('getAllTokenIds');
-      _getAllActiveTouristIDs = _contract.function('getAllActiveTouristIDs');
-      _setCentralWallet = _contract.function('setCentralWallet');
-
-      // State variables
-      _centralWallet = _contract.function('centralWallet');
-
+      _contractLoaded = true;
       print('Enhanced contract loaded successfully');
     } catch (e) {
       print('Error loading contract: $e');
       // Don't throw exception, just log the error and continue
       print(
           'Contract loading failed, but continuing without blockchain functionality');
+      _contractLoaded = false;
     }
   }
 
-  // Create credentials from private key
-  EthPrivateKey _getCredentials(String privateKey) {
-    return EthPrivateKey.fromHex(privateKey);
-  }
 
   // Generate hash for tourist ID (Aadhaar or Passport)
   String generateTouristIdHash(String identityDocument) {
@@ -114,38 +133,17 @@ class BlockchainService {
     required String ownerPrivateKey,
     String issuerInfo = 'Government Tourism Authority', // Default issuer info
   }) async {
-    try {
-      final credentials = _getCredentials(ownerPrivateKey);
-
-      final transaction = Transaction.callContract(
-        contract: _contract,
-        function: _mintTouristID,
-        parameters: [
-          EthereumAddress.fromHex(touristAddress),
-          Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2))),
-          BigInt.from(validUntil.millisecondsSinceEpoch ~/ 1000),
-          metadataCID,
-          issuerInfo, // New parameter
-        ],
-        maxGas: 500000,
-      );
-
-      final result = await _client.sendTransaction(
-        credentials,
-        transaction,
-        chainId: _chainId,
-      );
-
-      return result;
-    } catch (e) {
-      print('Error minting Tourist ID: $e');
-      throw Exception('Failed to mint Tourist ID: $e');
-    }
+    // Client-side minting is disabled for this contract; use backend service
+    throw UnsupportedError('Client-side minting is disabled. Use BackendService.createTouristID()');
   }
 
   // Get tourist record by token ID
   Future<TouristRecord?> getTouristRecord(int tokenId) async {
     try {
+      if (!await ensureInitialized()) {
+        print('Contract not initialized – getTouristRecord aborted');
+        return null;
+      }
       final result = await _client.call(
         contract: _contract,
         function: _getTouristRecord,
@@ -164,154 +162,38 @@ class BlockchainService {
 
   // Get tourist address associated with a token ID
   Future<String?> getTouristOf(int tokenId) async {
-    try {
-      final result = await _client.call(
-        contract: _contract,
-        function: _getTouristOf,
-        params: [BigInt.from(tokenId)],
-      );
-
-      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
-    } catch (e) {
-      print('Error getting tourist of token: $e');
-      return null;
-    }
+    // Not supported by current contract
+    return null;
   }
 
   // Get token ID associated with a tourist address
   Future<int?> getTokenOfTourist(String touristAddress) async {
-    try {
-      final result = await _client.call(
-        contract: _contract,
-        function: _getTokenOfTourist,
-        params: [EthereumAddress.fromHex(touristAddress)],
-      );
-
-      return result.isNotEmpty ? (result[0] as BigInt).toInt() : null;
-    } catch (e) {
-      print('Error getting token of tourist: $e');
-      return null;
-    }
+    // Not supported by current contract
+    return null;
   }
 
   // Get all token IDs in the system
   Future<List<int>> getAllTokenIds() async {
-    try {
-      final result = await _client.call(
-        contract: _contract,
-        function: _getAllTokenIds,
-        params: [],
-      );
-
-      if (result.isNotEmpty) {
-        final tokenIds = result[0] as List<dynamic>;
-        return tokenIds.map((id) => (id as BigInt).toInt()).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error getting all token IDs: $e');
-      return [];
-    }
+    // Not supported by current contract
+    return [];
   }
 
   // Get all active tourist IDs with their associated addresses
   Future<Map<int, String>> getAllActiveTouristIDs() async {
-    try {
-      final result = await _client.call(
-        contract: _contract,
-        function: _getAllActiveTouristIDs,
-        params: [],
-      );
-
-      if (result.isNotEmpty && result.length >= 2) {
-        final tokenIds = result[0] as List<dynamic>;
-        final tourists = result[1] as List<dynamic>;
-
-        Map<int, String> activeIDs = {};
-        for (int i = 0; i < tokenIds.length; i++) {
-          final tokenId = (tokenIds[i] as BigInt).toInt();
-          final touristAddress = (tourists[i] as EthereumAddress).hex;
-          activeIDs[tokenId] = touristAddress;
-        }
-        return activeIDs;
-      }
-      return {};
-    } catch (e) {
-      print('Error getting all active tourist IDs: $e');
-      return {};
-    }
+    // Not supported by current contract
+    return {};
   }
 
-  // Get central wallet address
-  Future<String?> getCentralWallet() async {
-    try {
-      final result = await _client.call(
-        contract: _contract,
-        function: _centralWallet,
-        params: [],
-      );
+  // No central wallet function available in this contract variant
 
-      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
-    } catch (e) {
-      print('Error getting central wallet: $e');
-      return null;
-    }
-  }
-
-  // Set new central wallet (only contract owner)
-  Future<String> setCentralWallet({
-    required String newCentralWallet,
-    required String ownerPrivateKey,
-  }) async {
-    try {
-      final credentials = _getCredentials(ownerPrivateKey);
-
-      final transaction = Transaction.callContract(
-        contract: _contract,
-        function: _setCentralWallet,
-        parameters: [EthereumAddress.fromHex(newCentralWallet)],
-        maxGas: 300000,
-      );
-
-      final result = await _client.sendTransaction(
-        credentials,
-        transaction,
-        chainId: _chainId,
-      );
-
-      return result;
-    } catch (e) {
-      print('Error setting central wallet: $e');
-      throw Exception('Failed to set central wallet: $e');
-    }
-  }
+  // No setCentralWallet in current contract; method removed
 
   // Force delete Tourist ID (only owner)
   Future<String> forceDeleteTouristID({
     required int tokenId,
     required String ownerPrivateKey,
   }) async {
-    try {
-      final credentials = _getCredentials(ownerPrivateKey);
-
-      final transaction = Transaction.callContract(
-        contract: _contract,
-        function: _forceDeleteTouristID,
-        parameters: [BigInt.from(tokenId)],
-        maxGas: 300000,
-      );
-
-      final result = await _client.sendTransaction(
-        credentials,
-        transaction,
-        chainId: _chainId,
-      );
-
-      return result;
-    } catch (e) {
-      print('Error force deleting Tourist ID: $e');
-      throw Exception('Failed to force delete Tourist ID: $e');
-    }
+    throw UnsupportedError('forceDeleteTouristID is not supported by current contract');
   }
 
   // Batch delete expired Tourist IDs
@@ -319,53 +201,22 @@ class BlockchainService {
     required List<int> tokenIds,
     required String privateKey,
   }) async {
-    try {
-      final credentials = _getCredentials(privateKey);
-
-      final transaction = Transaction.callContract(
-        contract: _contract,
-        function: _batchDeleteExpired,
-        parameters: [tokenIds.map((id) => BigInt.from(id)).toList()],
-        maxGas: 1000000, // Higher gas limit for batch operations
-      );
-
-      final result = await _client.sendTransaction(
-        credentials,
-        transaction,
-        chainId: _chainId,
-      );
-
-      return result;
-    } catch (e) {
-      print('Error batch deleting expired IDs: $e');
-      throw Exception('Failed to batch delete expired IDs: $e');
-    }
+    throw UnsupportedError('batchDeleteExpired is not supported by current contract');
   }
 
   // Get token ID by tourist hash
   Future<int?> getTokenIdByTouristHash(String touristIdHash) async {
-    try {
-      final result = await _client.call(
-        contract: _contract,
-        function: _getTokenIdByTouristHash,
-        params: [
-          Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2)))
-        ],
-      );
-
-      if (result.isNotEmpty) {
-        return (result[0] as BigInt).toInt();
-      }
-      return null;
-    } catch (e) {
-      print('Error getting token ID: $e');
-      return null;
-    }
+    // Not supported by current contract
+    return null;
   }
 
   // Check if Tourist ID is valid
   Future<bool> isValidTouristID(int tokenId) async {
     try {
+      if (!await ensureInitialized()) {
+        print('Contract not initialized – isValidTouristID aborted');
+        return false;
+      }
       final result = await _client.call(
         contract: _contract,
         function: _isValidTouristID,
@@ -381,17 +232,27 @@ class BlockchainService {
 
   // Check if Tourist ID is expired
   Future<bool> isExpired(int tokenId) async {
+    // Compute expiration from record.validUntil
     try {
+      if (!await ensureInitialized()) {
+        print('Contract not initialized – isExpired aborted');
+        return true;
+      }
       final result = await _client.call(
         contract: _contract,
-        function: _isExpired,
+        function: _getTouristRecord,
         params: [BigInt.from(tokenId)],
       );
-
-      return result.isNotEmpty ? result[0] as bool : false;
+      if (result.isNotEmpty) {
+        final data = result[0] as List<dynamic>;
+        final validUntilSec = (data[1] as BigInt).toInt();
+        final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        return nowSec >= validUntilSec;
+      }
+      return true;
     } catch (e) {
-      print('Error checking expiration: $e');
-      return false;
+      print('Error computing expiration from record: $e');
+      return true;
     }
   }
 
@@ -401,30 +262,7 @@ class BlockchainService {
     required String newMetadataCID,
     required String touristPrivateKey,
   }) async {
-    try {
-      final credentials = _getCredentials(touristPrivateKey);
-
-      final transaction = Transaction.callContract(
-        contract: _contract,
-        function: _updateMetadata,
-        parameters: [
-          BigInt.from(tokenId),
-          newMetadataCID,
-        ],
-        maxGas: 200000,
-      );
-
-      final result = await _client.sendTransaction(
-        credentials,
-        transaction,
-        chainId: _chainId,
-      );
-
-      return result;
-    } catch (e) {
-      print('Error updating metadata: $e');
-      throw Exception('Failed to update metadata: $e');
-    }
+    throw UnsupportedError('updateMetadata is not supported by current contract');
   }
 
   // Delete expired Tourist ID
@@ -432,48 +270,22 @@ class BlockchainService {
     required int tokenId,
     required String privateKey,
   }) async {
-    try {
-      final credentials = _getCredentials(privateKey);
-
-      final transaction = Transaction.callContract(
-        contract: _contract,
-        function: _deleteExpiredTouristID,
-        parameters: [BigInt.from(tokenId)],
-        maxGas: 300000,
-      );
-
-      final result = await _client.sendTransaction(
-        credentials,
-        transaction,
-        chainId: _chainId,
-      );
-
-      return result;
-    } catch (e) {
-      print('Error deleting expired ID: $e');
-      throw Exception('Failed to delete expired ID: $e');
-    }
+    throw UnsupportedError('deleteExpiredTouristID is not supported by current contract');
   }
 
   // Get total active IDs
   Future<int> getTotalActiveIDs() async {
-    try {
-      final result = await _client.call(
-        contract: _contract,
-        function: _totalActiveIDs,
-        params: [],
-      );
-
-      return result.isNotEmpty ? (result[0] as BigInt).toInt() : 0;
-    } catch (e) {
-      print('Error getting total active IDs: $e');
-      return 0;
-    }
+    // Not supported by current contract
+    return 0;
   }
 
   // Get balance of address
   Future<int> getBalanceOf(String address) async {
     try {
+      if (!await ensureInitialized()) {
+        print('Contract not initialized – getBalanceOf aborted');
+        return 0;
+      }
       final result = await _client.call(
         contract: _contract,
         function: _balanceOf,
@@ -490,6 +302,10 @@ class BlockchainService {
   // Get owner of token (will always return central wallet)
   Future<String?> getOwnerOf(int tokenId) async {
     try {
+      if (!await ensureInitialized()) {
+        print('Contract not initialized – getOwnerOf aborted');
+        return null;
+      }
       final result = await _client.call(
         contract: _contract,
         function: _ownerOf,
@@ -503,9 +319,32 @@ class BlockchainService {
     }
   }
 
+  // Get contract owner (issuer/government wallet)
+  Future<String?> getContractOwner() async {
+    try {
+      if (!await ensureInitialized()) {
+        print('Contract not initialized – getContractOwner aborted');
+        return null;
+      }
+      final result = await _client.call(
+        contract: _contract,
+        function: _contractOwner,
+        params: [],
+      );
+      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
+    } catch (e) {
+      print('Error getting contract owner: $e');
+      return null;
+    }
+  }
+
   // Helper method to get comprehensive tourist info
   Future<Map<String, dynamic>?> getCompleteTouristInfo(int tokenId) async {
     try {
+      if (!await ensureInitialized()) {
+        print('Contract not initialized – getCompleteTouristInfo aborted');
+        return null;
+      }
       final record = await getTouristRecord(tokenId);
       final tourist = await getTouristOf(tokenId);
       final owner = await getOwnerOf(tokenId);

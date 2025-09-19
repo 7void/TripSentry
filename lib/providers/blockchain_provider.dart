@@ -4,6 +4,7 @@ import '../services/backend_service.dart'; // Only need this one now
 import '../services/blockchain_service.dart';
 import '../services/ipfs_service.dart';
 import '../services/wallet_service.dart';
+import '../services/user_service.dart';
 
 enum ApplicationStatus {
   notSubmitted,
@@ -142,10 +143,11 @@ class BlockchainProvider with ChangeNotifier {
       print('Checking backend health...');
       final isHealthy = await _backendService.checkHealth();
       if (!isHealthy) {
-        _setError('Backend server is not responding. Please try again later.');
-        return false;
+        print('Warning: All backend health checks failed. Attempting mint anyway using last known base URL.');
+        // Do not early-return; attempt to proceed. Errors will be caught below if backend truly unreachable.
+      } else {
+        print('Backend health check passed');
       }
-      print('Backend health check passed');
 
       // Upload metadata to IPFS
       print('Uploading metadata to IPFS...');
@@ -164,26 +166,35 @@ class BlockchainProvider with ChangeNotifier {
       // Set status to transaction pending
       _setStatus(BlockchainStatus.transactionPending);
 
-      // Resolve central wallet address to satisfy backend validation
-      String? resolvedWallet = await _blockchainService.getCentralWallet();
+      // Resolve issuer/government address from backend status, fallback to on-chain owner()
+      String? resolvedWallet;
+      try {
+        final status = await _backendService.getBlockchainStatus();
+        final governmentAddress = status['governmentAddress'] as String?;
+        if (governmentAddress != null && governmentAddress.startsWith('0x')) {
+          resolvedWallet = governmentAddress;
+          print('Resolved issuer from backend: $resolvedWallet');
+        }
+      } catch (_) {
+        // ignore and fallback
+      }
+
       if (resolvedWallet == null || !resolvedWallet.startsWith('0x')) {
-        // Fallback: ask backend for governmentAddress
-        try {
-          final status = await _backendService.getBlockchainStatus();
-          final governmentAddress = status['governmentAddress'] as String?;
-          if (governmentAddress != null && governmentAddress.startsWith('0x')) {
-            resolvedWallet = governmentAddress;
-          }
-        } catch (e) {
-          // ignore, handled below
+        // Fallback: read Ownable.owner() from contract (if ABI contains it)
+        final ownerAddr = await _blockchainService.getContractOwner();
+        if (ownerAddr != null && ownerAddr.startsWith('0x')) {
+          resolvedWallet = ownerAddr;
+          print('Resolved issuer from on-chain owner(): $resolvedWallet');
+        } else {
+          print('Could not resolve issuer from owner()');
         }
       }
 
       if (resolvedWallet == null || !resolvedWallet.startsWith('0x')) {
-        _setError('Central wallet address not available');
+        _setError('Issuer wallet address not available');
         return false;
       }
-      print('Using touristAddress: $resolvedWallet');
+      print('Using touristAddress (issuer): $resolvedWallet');
 
       // Use the consolidated backend service's createTouristID method
       print('Creating Tourist ID through backend...');
@@ -197,18 +208,31 @@ class BlockchainProvider with ChangeNotifier {
       print('Backend result: $result');
 
       if (result['success'] == true) {
-        final data = result['data'];
-        _transactionHash = data['transactionHash'] ?? '';
-        final tokenId = data['tokenId'];
+        final data = result['data'] ?? {};
+        _transactionHash = (data['transactionHash'] ?? '').toString();
+        final dynamic tokenIdRaw = data['tokenId'];
+        final int? tokenIdInt = tokenIdRaw is int
+            ? tokenIdRaw
+            : int.tryParse(tokenIdRaw?.toString() ?? '');
 
-        if (tokenId != null) {
-          _tokenId = tokenId;
+        if (tokenIdInt != null) {
+          _tokenId = tokenIdInt;
           _touristIdHash = touristIdHash;
-          await _walletService.saveTokenId(tokenId);
+          await _walletService.saveTokenId(tokenIdInt);
+
+          // Update Firestore linkage for this user (blockchainId)
+          try {
+            await UserService.updateBlockchainIdAfterMint(tokenIdInt);
+          } catch (e) {
+            // Non-fatal; proceed with local updates
+            if (kDebugMode) {
+              print('Failed to update blockchainId in Firestore: $e');
+            }
+          }
 
           // Get the tourist record from backend
           print('Fetching tourist record...');
-          final record = await _backendService.getTouristID(tokenId);
+          final record = await _backendService.getTouristID(tokenIdInt);
           if (record != null) {
             _touristRecord = record;
             _hasActiveTouristID = true;
@@ -216,6 +240,8 @@ class BlockchainProvider with ChangeNotifier {
             await _walletService.saveTouristRecord(record);
             print('Tourist record saved successfully');
           }
+        } else {
+          print('Warning: tokenId missing or not parseable from backend response: ${data['tokenId']}');
         }
 
         _setStatus(BlockchainStatus.ready);
@@ -593,16 +619,6 @@ class BlockchainProvider with ChangeNotifier {
   }
 
   // Additional utility methods matching your BlockchainService
-
-  // Get central wallet address
-  Future<String?> getCentralWalletAddress() async {
-    try {
-      return await _blockchainService.getCentralWallet();
-    } catch (e) {
-      print('Error getting central wallet address: $e');
-      return null;
-    }
-  }
 
   // Get tourist address associated with token ID
   Future<String?> getTouristAddressForToken(int tokenId) async {

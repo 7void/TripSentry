@@ -2,13 +2,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/tourist_record.dart';
 
 class BackendService {
-  // Use the actual working URL from BackendMintService
-  static const String _baseUrl = 'http://172.20.188.199:3000/api';
-  static const String _apiKey =
-      'b74a90d9569eb50c5062bdfea78555c82696054b4de1fc224c622da6467358ba';
+  // Hardcoded base URL per user request (remove dynamic resolution)
+  static const String _hardcodedHost = 'http://172.20.188.240:3000';
+  String _baseUrl = 'http://172.20.188.240:3000/api';
+  String _resolvedHealthHost = 'http://172.20.188.240:3000';
+
+  // Loaded from env during initialize()
+  String? _configuredApiBase; // kept for compatibility but ignored now
+  String? _configuredApiKey;  // BACKEND_API_KEY value
 
   static const String _applicationIdKey = 'tourist_application_id';
   static const String _touristHashKey = 'tourist_id_hash';
@@ -19,29 +24,48 @@ class BackendService {
   late SharedPreferences _prefs;
   // ignore: unused_field
   String? _authToken;
+  bool _initialized = false;
 
   Future<void> initialize() async {
+    if (_initialized) return;
     _prefs = await SharedPreferences.getInstance();
     _authToken = _prefs.getString('auth_token');
+
+    // Read environment configuration
+  _configuredApiBase = dotenv.env['API_BASE']?.trim(); // ignored (hardcoded override)
+    _configuredApiKey = dotenv.env['BACKEND_API_KEY']?.trim();
+
+    // Normalize base: accept with or without trailing /api
+    // Force hardcoded values
+    _resolvedHealthHost = _hardcodedHost;
+    _baseUrl = '$_hardcodedHost/api';
+
+    // Debug prints (can be removed later)
+    // ignore: avoid_print
+  print('[BackendService:init] HARD_CODED resolvedHost=$_resolvedHealthHost baseUrl=$_baseUrl (env API_BASE=$_configuredApiBase ignored)');
+    if (_configuredApiKey == null || _configuredApiKey!.isEmpty) {
+      // ignore: avoid_print
+      print('[BackendService:init] WARNING: BACKEND_API_KEY missing or empty');
+    }
+    _initialized = true;
   }
 
   // Check backend health
   Future<bool> checkHealth() async {
+    if (!_initialized) {
+      // ignore: await_only_futures
+      await initialize();
+    }
     try {
-      print('Checking backend health...');
-      final url = Uri.parse('http://172.20.188.199:3000/health');
+      final url = Uri.parse('$_resolvedHealthHost/health');
       final response = await http.get(url).timeout(
-        Duration(seconds: 10),
-        onTimeout: () {
-          print('Health check timeout');
-          return http.Response('timeout', 408);
-        },
+        const Duration(seconds: 5),
+        onTimeout: () => http.Response('timeout', 408),
       );
-
-      print('Health check response: ${response.statusCode} - ${response.body}');
+      print('[BackendService:health] $_resolvedHealthHost => ${response.statusCode}');
       return response.statusCode == 200;
     } catch (e) {
-      print('Backend health check failed: $e');
+      print('[BackendService:health] Error $_resolvedHealthHost: $e');
       return false;
     }
   }
@@ -49,7 +73,7 @@ class BackendService {
   // Get blockchain status
   Future<Map<String, dynamic>> getBlockchainStatus() async {
     try {
-      final url = Uri.parse('$_baseUrl/blockchain-status');
+  final url = Uri.parse('$_baseUrl/blockchain-status');
       final headers = await _authHeaders();
 
       final response = await http.get(url, headers: headers).timeout(
@@ -79,6 +103,12 @@ class BackendService {
     String issuerInfo = 'Government Tourism Authority',
   }) async {
     try {
+      if (!_initialized) {
+        await initialize();
+      }
+      if (_baseUrl.isEmpty) {
+        throw Exception('Backend base URL not resolved (empty). Check API_BASE in .env or health checks.');
+      }
       print('=== CREATING TOURIST ID ===');
       print('Tourist Address: $touristAddress');
       print('Tourist ID Hash: $touristIdHash');
@@ -86,14 +116,16 @@ class BackendService {
       print('Metadata CID: $metadataCID');
       print('Issuer Info: $issuerInfo');
 
-      final url = Uri.parse('$_baseUrl/mint-id');
+    final url = Uri.parse('$_baseUrl/mint-id');
 
       final headers = await _authHeaders(contentTypeJson: true);
 
       final body = {
+        // touristAddress currently ignored by backend but kept for forward compatibility
         'touristAddress': touristAddress,
         'touristIdHash': touristIdHash,
-        'validUntil': validUntil.toIso8601String(),
+        // Backend expects unix timestamp seconds (int)
+        'validUntil': (validUntil.millisecondsSinceEpoch / 1000).round(),
         'metadataCID': metadataCID,
         'issuerInfo': issuerInfo,
       };
@@ -121,28 +153,29 @@ class BackendService {
       print('Response headers: ${response.headers}');
       print('Response body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['success'] == true) {
-          print('Tourist ID created successfully!');
-
-          // Store the tourist hash and token ID locally
-          final tokenId = responseData['data']['tokenId'].toString();
+      if (response.statusCode == 201) {
+        final bodyJson = jsonDecode(response.body);
+        // Expected shape: { transactionHash, tokenId, record }
+        final rawTokenId = bodyJson['tokenId'];
+        final int? tokenIdInt = rawTokenId is int
+            ? rawTokenId
+            : int.tryParse((rawTokenId ?? '').toString());
+        if (tokenIdInt != null) {
           await storeTouristHash(touristIdHash);
-          await _prefs.setString('token_id', tokenId);
-
-          return {
-            'success': true,
-            'data': responseData['data'],
-            'message': 'Tourist ID created successfully',
-          };
-        } else {
-          throw Exception(
-              'Backend error: ${responseData['error'] ?? 'Unknown backend error'}');
+          await _prefs.setInt('token_id', tokenIdInt);
         }
-      } else {
-        return _handleErrorResponse(response);
+        return {
+          'success': true,
+          'data': {
+            'transactionHash': bodyJson['transactionHash'],
+            'tokenId': tokenIdInt ?? rawTokenId,
+            'record': bodyJson['record'],
+          },
+          'message': 'Tourist ID created successfully'
+        };
       }
+      // Any non-201 -> error mapping
+      return _handleErrorResponse(response);
     } on FormatException catch (e) {
       print('JSON parsing error: $e');
       throw Exception('Invalid response from server. Please try again.');
@@ -175,7 +208,9 @@ class BackendService {
   // Get Tourist ID details
   Future<TouristRecord?> getTouristID(int tokenId) async {
     try {
-      final url = Uri.parse('$_baseUrl/tourist-id/$tokenId');
+      if (!_initialized) await initialize();
+      if (_baseUrl.isEmpty) throw Exception('Backend base URL not set');
+    final url = Uri.parse('$_baseUrl/tourist-id/$tokenId');
       final headers = await _authHeaders();
 
       print('Fetching tourist ID: $tokenId from $url');
@@ -191,20 +226,28 @@ class BackendService {
       print('Get tourist ID response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['success'] == true) {
-          final data = responseData['data'];
-          return TouristRecord(
-            touristIdHash: data['touristIdHash'],
-            metadataCID: data['metadataCID'],
-            validUntil: DateTime.parse(data['validUntil']),
-            isActive: data['isActive'],
-            touristAddress: data['touristAddress'],
-            issuedAt: DateTime.parse(data['issuedAt']),
-            issuerInfo: data['issuerInfo'],
-          );
+        final recordJson = jsonDecode(response.body);
+        // Backend returns numeric unix seconds for validUntil
+        final validUntilSeconds = recordJson['validUntil'];
+        DateTime validUntil;
+        if (validUntilSeconds is int) {
+          validUntil = DateTime.fromMillisecondsSinceEpoch(validUntilSeconds * 1000);
+        } else if (validUntilSeconds is String) {
+          // Fallback if stringified number
+            final parsed = int.tryParse(validUntilSeconds) ?? 0;
+            validUntil = DateTime.fromMillisecondsSinceEpoch(parsed * 1000);
+        } else {
+          // Last resort: attempt DateTime parse
+          validUntil = DateTime.now();
         }
-        return null;
+        return TouristRecord(
+          touristIdHash: recordJson['touristIdHash'] ?? '',
+          metadataCID: recordJson['metadataCID'] ?? '',
+          validUntil: validUntil,
+          touristAddress: recordJson['touristAddress'] ?? '',
+          issuerInfo: recordJson['issuerInfo'] ?? 'Government Tourism Authority',
+          issuedAt: recordJson['issuedAt'] != null ? DateTime.tryParse(recordJson['issuedAt']) : null,
+        );
       } else if (response.statusCode == 404) {
         print('Tourist ID not found: $tokenId');
         return null;
@@ -225,7 +268,9 @@ class BackendService {
     int limit = 50,
   }) async {
     try {
-      final url = Uri.parse('$_baseUrl/tourist-ids?page=$page&limit=$limit');
+  if (!_initialized) await initialize();
+  if (_baseUrl.isEmpty) throw Exception('Backend base URL not set');
+  final url = Uri.parse('$_baseUrl/tourist-ids?page=$page&limit=$limit');
       final headers = await _authHeaders();
 
       final response = await http.get(url, headers: headers).timeout(
@@ -344,8 +389,8 @@ class BackendService {
   // Generate tourist ID hash
   String _generateTouristIdHash(
       TouristMetadata metadata, String identityDocument) {
-    final String combined =
-        '${metadata.name}${metadata.passportNumber}${metadata.aadhaarHash}$identityDocument';
+  final String combined =
+    '${metadata.name}${metadata.passportNumber}${metadata.aadhaarHash}$identityDocument';
     return combined.hashCode.abs().toString();
   }
 
@@ -367,7 +412,11 @@ class BackendService {
   }
 
   Future<String?> getStoredTokenId() async {
-    return _prefs.getString('token_id');
+    final intVal = _prefs.getInt('token_id');
+    if (intVal != null) return intVal.toString();
+    // Fallback for older versions that stored string
+    final strVal = _prefs.getString('token_id');
+    return strVal;
   }
 
   Future<void> clearStoredData() async {
@@ -385,9 +434,14 @@ class BackendService {
   // Build headers with API key and optional Firebase ID token
   Future<Map<String, String>> _authHeaders(
       {bool contentTypeJson = false}) async {
-    final Map<String, String> headers = {
-      'x-api-key': _apiKey,
-    };
+    final Map<String, String> headers = {};
+
+    if ((_configuredApiKey == null || _configuredApiKey!.isEmpty)) {
+      // Leave header empty to surface 401 for easier debugging
+      print('[BackendService] WARNING: BACKEND_API_KEY missing in .env');
+    } else {
+      headers['x-api-key'] = _configuredApiKey!;
+    }
     if (contentTypeJson) {
       headers['Content-Type'] = 'application/json';
     }
