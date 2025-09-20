@@ -40,6 +40,16 @@ app.get('/health', (req, res) => {
 	res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Root route (GET + HEAD) for platform probes and direct browser access
+// This is intentionally lightweight and mirrors the /health endpoint so
+// requests to '/' (common on hosting platforms) return 200 instead of 404.
+app.get('/', (req, res) => {
+	res.json({ status: 'ok', service: 'tourist-id-backend', timestamp: new Date().toISOString() });
+});
+app.head('/', (req, res) => {
+	res.status(200).end();
+});
+
 // Get blockchain status (made public to ease client resolution)
 app.get('/api/blockchain-status', async (req, res) => {
 	try {
@@ -124,4 +134,3 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
-
