@@ -7,9 +7,9 @@ import '../models/tourist_record.dart';
 
 class BackendService {
   // Hardcoded base URL per user request (remove dynamic resolution)
-  static const String _hardcodedHost = 'http://172.20.188.240:3000';
-  String _baseUrl = 'http://172.20.188.240:3000/api';
-  String _resolvedHealthHost = 'http://172.20.188.240:3000';
+  static const String _hardcodedHost = 'https://touristsafetyapp.onrender.com';
+  String _baseUrl = 'https://touristsafetyapp.onrender.com/api';
+  String _resolvedHealthHost = 'https://touristsafetyapp.onrender.com';
 
   // Loaded from env during initialize()
   String? _configuredApiBase; // kept for compatibility but ignored now
@@ -36,13 +36,13 @@ class BackendService {
     _configuredApiKey = dotenv.env['BACKEND_API_KEY']?.trim();
 
     // Normalize base: accept with or without trailing /api
-    // Force hardcoded values
-    _resolvedHealthHost = _hardcodedHost;
-    _baseUrl = '$_hardcodedHost/api';
+  // Force hardcoded values (Render endpoint)
+  _resolvedHealthHost = _hardcodedHost;
+  _baseUrl = '$_hardcodedHost/api';
 
     // Debug prints (can be removed later)
     // ignore: avoid_print
-  print('[BackendService:init] HARD_CODED resolvedHost=$_resolvedHealthHost baseUrl=$_baseUrl (env API_BASE=$_configuredApiBase ignored)');
+  print('[BackendService:init] Using Render endpoint resolvedHost=$_resolvedHealthHost baseUrl=$_baseUrl (env API_BASE=$_configuredApiBase ignored)');
     if (_configuredApiKey == null || _configuredApiKey!.isEmpty) {
       // ignore: avoid_print
       print('[BackendService:init] WARNING: BACKEND_API_KEY missing or empty');
