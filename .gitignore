@@ -145,5 +145,7 @@ temp/
 .env.local
 .env.*.local
 
+lib/secrets.dart
+
 firebase_options.dart
 firestore_rules

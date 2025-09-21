@@ -6,6 +6,8 @@ import 'package:web3dart/web3dart.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/tourist_record.dart';
 
+// web3dart imported with alias `web3` for clarity when interacting with Ethereum types.
+
 class BlockchainService {
   // Loaded from environment (.env) to stay in sync with backend
   late String _rpcUrl; // reassignable to avoid late-final reinit errors
@@ -85,9 +87,9 @@ class BlockchainService {
         ? decoded['abi']
         : throw Exception('ABI format not recognized in TouristID.json')) as List<dynamic>;
 
-      _contract = DeployedContract(
-        ContractAbi.fromJson(jsonEncode(abi), 'TouristID'),
-        EthereumAddress.fromHex(_contractAddress),
+      _contract = web3.DeployedContract(
+        web3.ContractAbi.fromJson(jsonEncode(abi), 'TouristID'),
+        web3.EthereumAddress.fromHex(_contractAddress),
       );
 
   // Functions present in current contract
@@ -289,7 +291,7 @@ class BlockchainService {
       final result = await _client.call(
         contract: _contract,
         function: _balanceOf,
-        params: [EthereumAddress.fromHex(address)],
+        params: [web3.EthereumAddress.fromHex(address)],
       );
 
       return result.isNotEmpty ? (result[0] as BigInt).toInt() : 0;
@@ -312,7 +314,7 @@ class BlockchainService {
         params: [BigInt.from(tokenId)],
       );
 
-      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
+      return result.isNotEmpty ? (result[0] as web3.EthereumAddress).hex : null;
     } catch (e) {
       print('Error getting owner: $e');
       return null;
@@ -366,29 +368,31 @@ class BlockchainService {
   }
 
   // Get gas price
-  Future<EtherAmount> getGasPrice() async {
+  Future<web3.EtherAmount> getGasPrice() async {
     try {
       return await _client.getGasPrice();
     } catch (e) {
       print('Error getting gas price: $e');
-      return EtherAmount.inWei(BigInt.from(20000000000)); // 20 Gwei default
+      return web3.EtherAmount.inWei(
+          BigInt.from(20000000000)); // 20 Gwei default
     }
   }
 
   // Get ETH balance
-  Future<EtherAmount> getEthBalance(String address) async {
+  Future<web3.EtherAmount> getEthBalance(String address) async {
     try {
-      return await _client.getBalance(EthereumAddress.fromHex(address));
+      return await _client.getBalance(web3.EthereumAddress.fromHex(address));
     } catch (e) {
       print('Error getting ETH balance: $e');
-      return EtherAmount.zero();
+      return web3.EtherAmount.zero();
     }
   }
 
   // Wait for transaction confirmation
-  Future<TransactionReceipt?> waitForTransactionReceipt(String txHash) async {
+  Future<web3.TransactionReceipt?> waitForTransactionReceipt(
+      String txHash) async {
     try {
-      TransactionReceipt? receipt;
+      web3.TransactionReceipt? receipt;
       int attempts = 0;
       const maxAttempts =
           30; // 30 attempts with 2-second delay = 1 minute timeout

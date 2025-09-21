@@ -184,12 +184,13 @@ class _HomeScreenState extends State<HomeScreen> {
         // Pause Dart fallback (no-op on Android due to platform guard)
         await LocationService().pause();
       } catch (_) {}
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isTracking = false;
           _serviceStarted = false;
           _userWantsTracking = false;
         });
+      }
       // ignore: discarded_futures
       _saveTrackingPreference(false);
     } else {
