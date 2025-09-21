@@ -7,6 +7,7 @@ import '../services/location_service.dart'; // control Dart side (non-Android pl
 import '../utils/permission_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'qr_checkin_screen.dart';
 
 const _kTrackingPrefKey = 'tracking_enabled';
 
@@ -552,8 +553,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildActionButton(
                     context,
                     Icons.qr_code_scanner,
-                    'Scan QR',
-                    () => _showComingSoon(context),
+                    'QR Check-In',
+                    () {
+                      final record = blockchainProvider.touristRecord;
+                      final cid = record?.metadataCID;
+                      if (cid == null || cid.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('No metadata found for your Tourist ID.'),
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => QrCheckinScreen(cid: cid),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),

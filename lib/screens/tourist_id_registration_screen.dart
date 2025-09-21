@@ -1,9 +1,9 @@
 // lib/screens/tourist_id_registration_screen.dart
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
 import '../models/tourist_record.dart';
+import '../services/user_service.dart';
 
 class TouristIDRegistrationScreen extends StatefulWidget {
   const TouristIDRegistrationScreen({super.key});
@@ -546,6 +546,18 @@ class _TouristIDRegistrationScreenState
 
     // Use the primary identity document (passport in this case)
     final identityDocument = _passportController.text.trim();
+
+    // Persist unhashed values to Firestore users/{uid} (fill if missing)
+    // This should not block the main flow; failures are swallowed inside the service.
+    await UserService.upsertUnhashedIdentityFields(
+      passportNumber: _passportController.text.trim(),
+      aadharNumber: _aadhaarController.text.trim().isNotEmpty
+          ? _aadhaarController.text.trim()
+          : null,
+      phoneNumber: _phoneController.text.trim(),
+      emergencyContactName: _emergencyContactController.text.trim(),
+      emergencyContactNumber: _emergencyPhoneController.text.trim(),
+    );
 
     final success = await blockchainProvider.mintTouristID(
       metadata: metadata,

@@ -70,4 +70,63 @@ class UserService {
         .snapshots()
         .map((s) => s.data()?['blockchainId']?.toString());
   }
+
+  /// Upsert unhashed identity and emergency contact fields into users/{uid}.
+  /// Only fills fields that are missing or empty to avoid overwriting existing data unintentionally.
+  /// Fields:
+  /// - aadharNumber (string)
+  /// - passportNumber (string)
+  /// - phoneNumber (string)
+  /// - emergencyContactName (string)
+  /// - emergencyContactNumber (string)
+  static Future<void> upsertUnhashedIdentityFields({
+    required String passportNumber,
+    String? aadharNumber,
+    required String phoneNumber,
+    required String emergencyContactName,
+    required String emergencyContactNumber,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return; // silently ignore when not signed in
+    final ref = _fs.collection('users').doc(user.uid);
+
+    try {
+      final snap = await ref.get();
+      final data = snap.data() ?? <String, dynamic>{};
+
+      final Map<String, dynamic> toSetIfMissing = {};
+
+      void setIfMissing(String key, String? value) {
+        if (value == null || value.trim().isEmpty) return;
+        final existing = data[key];
+        if (existing == null || (existing is String && existing.trim().isEmpty)) {
+          toSetIfMissing[key] = value.trim();
+        }
+      }
+
+      setIfMissing('passportNumber', passportNumber);
+      setIfMissing('aadharNumber', aadharNumber);
+      setIfMissing('phoneNumber', phoneNumber);
+      setIfMissing('emergencyContactName', emergencyContactName);
+      setIfMissing('emergencyContactNumber', emergencyContactNumber);
+
+      if (!snap.exists) {
+        // Create doc with provided fields
+        await ref.set({
+          ...toSetIfMissing,
+          'blockchainId': data['blockchainId'] ?? null,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } else if (toSetIfMissing.isNotEmpty) {
+        await ref.set({
+          ...toSetIfMissing,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      // Avoid failing the mint flow due to Firestore write issues.
+      // You can log this if you have a logger.
+    }
+  }
 }
