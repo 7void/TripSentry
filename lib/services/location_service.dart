@@ -45,7 +45,9 @@ class LocationService {
       perm = await Geolocator.requestPermission();
     }
     if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) return;
+        perm == LocationPermission.deniedForever) {
+      return;
+    }
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 8), (_) => _update());
     await _update();

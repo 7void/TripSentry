@@ -29,8 +29,8 @@ class _TouristIDRegistrationScreenState
 
   DateTime? _dateOfBirth;
   DateTime? _validUntil;
-  List<String> _itinerary = [];
-  String _profileImageCID = '';
+  final List<String> _itinerary = [];
+  final String _profileImageCID = '';
   int _currentPage = 0;
   bool _isSubmitting = false;
 

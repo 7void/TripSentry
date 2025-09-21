@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' as web3;
 import 'package:convert/convert.dart' as convert;
 import '../models/tourist_record.dart';
+
+// web3dart imported with alias `web3` for clarity when interacting with Ethereum types.
 
 class BlockchainService {
   static const String _rpcUrl =
@@ -13,39 +15,39 @@ class BlockchainService {
       '0x8d95bbd64547caf83bfa6af67b522ec6d1450a85';
   static const int _chainId = 11155111;
 
-  late Web3Client _client;
-  late DeployedContract _contract;
+  late web3.Web3Client _client;
+  late web3.DeployedContract _contract;
 
   // Existing functions
-  late ContractFunction _mintTouristID;
-  late ContractFunction _getTouristRecord;
-  late ContractFunction _updateMetadata;
-  late ContractFunction _isValidTouristID;
-  late ContractFunction _isExpired;
-  late ContractFunction _getTokenIdByTouristHash;
-  late ContractFunction _deleteExpiredTouristID;
-  late ContractFunction _totalActiveIDs;
-  late ContractFunction _balanceOf;
-  late ContractFunction _ownerOf;
-  late ContractFunction _forceDeleteTouristID;
-  late ContractFunction _batchDeleteExpired;
+  late web3.ContractFunction _mintTouristID;
+  late web3.ContractFunction _getTouristRecord;
+  late web3.ContractFunction _updateMetadata;
+  late web3.ContractFunction _isValidTouristID;
+  late web3.ContractFunction _isExpired;
+  late web3.ContractFunction _getTokenIdByTouristHash;
+  late web3.ContractFunction _deleteExpiredTouristID;
+  late web3.ContractFunction _totalActiveIDs;
+  late web3.ContractFunction _balanceOf;
+  late web3.ContractFunction _ownerOf;
+  late web3.ContractFunction _forceDeleteTouristID;
+  late web3.ContractFunction _batchDeleteExpired;
 
   // New functions for enhanced contract
-  late ContractFunction _getTouristOf;
-  late ContractFunction _getTokenOfTourist;
-  late ContractFunction _getAllTokenIds;
-  late ContractFunction _getAllActiveTouristIDs;
-  late ContractFunction _setCentralWallet;
+  late web3.ContractFunction _getTouristOf;
+  late web3.ContractFunction _getTokenOfTourist;
+  late web3.ContractFunction _getAllTokenIds;
+  late web3.ContractFunction _getAllActiveTouristIDs;
+  late web3.ContractFunction _setCentralWallet;
 
   // Contract state variables
-  late ContractFunction _centralWallet;
+  late web3.ContractFunction _centralWallet;
 
   static final BlockchainService _instance = BlockchainService._internal();
   factory BlockchainService() => _instance;
   BlockchainService._internal();
 
   Future<void> initialize() async {
-    _client = Web3Client(_rpcUrl, Client());
+    _client = web3.Web3Client(_rpcUrl, Client());
     await _loadContract();
   }
 
@@ -55,9 +57,9 @@ class BlockchainService {
           await rootBundle.loadString('assets/contracts/TouristID.json');
       final abi = jsonDecode(abiString) as List<dynamic>;
 
-      _contract = DeployedContract(
-        ContractAbi.fromJson(jsonEncode(abi), 'TouristID'),
-        EthereumAddress.fromHex(_contractAddress),
+      _contract = web3.DeployedContract(
+        web3.ContractAbi.fromJson(jsonEncode(abi), 'TouristID'),
+        web3.EthereumAddress.fromHex(_contractAddress),
       );
 
       // Existing functions
@@ -94,8 +96,8 @@ class BlockchainService {
   }
 
   // Create credentials from private key
-  EthPrivateKey _getCredentials(String privateKey) {
-    return EthPrivateKey.fromHex(privateKey);
+  web3.EthPrivateKey _getCredentials(String privateKey) {
+    return web3.EthPrivateKey.fromHex(privateKey);
   }
 
   // Generate hash for tourist ID (Aadhaar or Passport)
@@ -117,11 +119,11 @@ class BlockchainService {
     try {
       final credentials = _getCredentials(ownerPrivateKey);
 
-      final transaction = Transaction.callContract(
+      final transaction = web3.Transaction.callContract(
         contract: _contract,
         function: _mintTouristID,
         parameters: [
-          EthereumAddress.fromHex(touristAddress),
+          web3.EthereumAddress.fromHex(touristAddress),
           Uint8List.fromList(convert.hex.decode(touristIdHash.substring(2))),
           BigInt.from(validUntil.millisecondsSinceEpoch ~/ 1000),
           metadataCID,
@@ -171,7 +173,7 @@ class BlockchainService {
         params: [BigInt.from(tokenId)],
       );
 
-      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
+      return result.isNotEmpty ? (result[0] as web3.EthereumAddress).hex : null;
     } catch (e) {
       print('Error getting tourist of token: $e');
       return null;
@@ -184,7 +186,7 @@ class BlockchainService {
       final result = await _client.call(
         contract: _contract,
         function: _getTokenOfTourist,
-        params: [EthereumAddress.fromHex(touristAddress)],
+        params: [web3.EthereumAddress.fromHex(touristAddress)],
       );
 
       return result.isNotEmpty ? (result[0] as BigInt).toInt() : null;
@@ -230,7 +232,7 @@ class BlockchainService {
         Map<int, String> activeIDs = {};
         for (int i = 0; i < tokenIds.length; i++) {
           final tokenId = (tokenIds[i] as BigInt).toInt();
-          final touristAddress = (tourists[i] as EthereumAddress).hex;
+          final touristAddress = (tourists[i] as web3.EthereumAddress).hex;
           activeIDs[tokenId] = touristAddress;
         }
         return activeIDs;
@@ -251,7 +253,7 @@ class BlockchainService {
         params: [],
       );
 
-      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
+      return result.isNotEmpty ? (result[0] as web3.EthereumAddress).hex : null;
     } catch (e) {
       print('Error getting central wallet: $e');
       return null;
@@ -266,10 +268,10 @@ class BlockchainService {
     try {
       final credentials = _getCredentials(ownerPrivateKey);
 
-      final transaction = Transaction.callContract(
+      final transaction = web3.Transaction.callContract(
         contract: _contract,
         function: _setCentralWallet,
-        parameters: [EthereumAddress.fromHex(newCentralWallet)],
+        parameters: [web3.EthereumAddress.fromHex(newCentralWallet)],
         maxGas: 300000,
       );
 
@@ -294,7 +296,7 @@ class BlockchainService {
     try {
       final credentials = _getCredentials(ownerPrivateKey);
 
-      final transaction = Transaction.callContract(
+      final transaction = web3.Transaction.callContract(
         contract: _contract,
         function: _forceDeleteTouristID,
         parameters: [BigInt.from(tokenId)],
@@ -322,7 +324,7 @@ class BlockchainService {
     try {
       final credentials = _getCredentials(privateKey);
 
-      final transaction = Transaction.callContract(
+      final transaction = web3.Transaction.callContract(
         contract: _contract,
         function: _batchDeleteExpired,
         parameters: [tokenIds.map((id) => BigInt.from(id)).toList()],
@@ -404,7 +406,7 @@ class BlockchainService {
     try {
       final credentials = _getCredentials(touristPrivateKey);
 
-      final transaction = Transaction.callContract(
+      final transaction = web3.Transaction.callContract(
         contract: _contract,
         function: _updateMetadata,
         parameters: [
@@ -435,7 +437,7 @@ class BlockchainService {
     try {
       final credentials = _getCredentials(privateKey);
 
-      final transaction = Transaction.callContract(
+      final transaction = web3.Transaction.callContract(
         contract: _contract,
         function: _deleteExpiredTouristID,
         parameters: [BigInt.from(tokenId)],
@@ -477,7 +479,7 @@ class BlockchainService {
       final result = await _client.call(
         contract: _contract,
         function: _balanceOf,
-        params: [EthereumAddress.fromHex(address)],
+        params: [web3.EthereumAddress.fromHex(address)],
       );
 
       return result.isNotEmpty ? (result[0] as BigInt).toInt() : 0;
@@ -496,7 +498,7 @@ class BlockchainService {
         params: [BigInt.from(tokenId)],
       );
 
-      return result.isNotEmpty ? (result[0] as EthereumAddress).hex : null;
+      return result.isNotEmpty ? (result[0] as web3.EthereumAddress).hex : null;
     } catch (e) {
       print('Error getting owner: $e');
       return null;
@@ -527,29 +529,31 @@ class BlockchainService {
   }
 
   // Get gas price
-  Future<EtherAmount> getGasPrice() async {
+  Future<web3.EtherAmount> getGasPrice() async {
     try {
       return await _client.getGasPrice();
     } catch (e) {
       print('Error getting gas price: $e');
-      return EtherAmount.inWei(BigInt.from(20000000000)); // 20 Gwei default
+      return web3.EtherAmount.inWei(
+          BigInt.from(20000000000)); // 20 Gwei default
     }
   }
 
   // Get ETH balance
-  Future<EtherAmount> getEthBalance(String address) async {
+  Future<web3.EtherAmount> getEthBalance(String address) async {
     try {
-      return await _client.getBalance(EthereumAddress.fromHex(address));
+      return await _client.getBalance(web3.EthereumAddress.fromHex(address));
     } catch (e) {
       print('Error getting ETH balance: $e');
-      return EtherAmount.zero();
+      return web3.EtherAmount.zero();
     }
   }
 
   // Wait for transaction confirmation
-  Future<TransactionReceipt?> waitForTransactionReceipt(String txHash) async {
+  Future<web3.TransactionReceipt?> waitForTransactionReceipt(
+      String txHash) async {
     try {
-      TransactionReceipt? receipt;
+      web3.TransactionReceipt? receipt;
       int attempts = 0;
       const maxAttempts =
           30; // 30 attempts with 2-second delay = 1 minute timeout

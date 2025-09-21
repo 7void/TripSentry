@@ -1,5 +1,5 @@
 // Updated TouristRecord model to match the enhanced smart contract
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' as web3;
 
 // Tourist metadata class
 class TouristMetadata {
@@ -99,8 +99,8 @@ class TouristRecord {
             1000, // Convert from seconds to milliseconds
       ),
       isActive: data[3] as bool,
-      touristAddress: data[4] is EthereumAddress
-          ? (data[4] as EthereumAddress).hex
+      touristAddress: data[4] is web3.EthereumAddress
+          ? (data[4] as web3.EthereumAddress).hex
           : data[4].toString(),
       issuedAt: DateTime.fromMillisecondsSinceEpoch(
         (data[5] as BigInt).toInt() *

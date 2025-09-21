@@ -679,8 +679,4 @@ class BlockchainProvider with ChangeNotifier {
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

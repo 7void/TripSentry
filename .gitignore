@@ -144,3 +144,5 @@ temp/
 .env.development.local
 .env.local
 .env.*.local
+
+lib/secrets.dart
