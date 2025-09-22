@@ -222,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tourist Safety'),
+        title: const Text('TripSentry'),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) => _handleMenuAction(context, value),
