@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'package:shared_preferences/shared_preferences.dart';
 // zone_config is no longer needed for this screen; using hazard_zones instead.
 import '../services/hazard_zones.dart';
+import '../services/risk_score_service.dart';
 
 class GeoFencingScreen extends StatefulWidget {
   const GeoFencingScreen({super.key});
@@ -153,24 +154,82 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
           ),
         ],
       ),
-      body: GoogleMap(
-        initialCameraPosition:
-            CameraPosition(target: _currentPosition, zoom: 16),
-        markers: _markers,
-        circles: _circles,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
-        onMapCreated: (GoogleMapController controller) {
-          _mapController = controller;
-          _moveCameraToCurrentPosition();
-        },
-        onLongPress: (position) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Zone editing not available in this view'),
-                backgroundColor: Colors.blue),
-          );
-        },
+      body: Column(
+        children: [
+          // Safety Score Banner
+          StreamBuilder<RiskScoreUpdate>(
+            stream: RiskScoreService.instance.stream,
+            initialData: () {
+              final snap = RiskScoreService.instance.snapshot();
+              return RiskScoreUpdate(
+                riskExposure: (snap['riskExposure'] as double? ?? 0.0),
+                safetyScore: (snap['safetyScore'] as double? ?? 100.0),
+                category: (snap['category'] as String? ?? 'Safe'),
+              );
+            }(),
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              final score = data?.safetyScore ?? 100.0;
+              final category = data?.category ?? 'Safe';
+              Color bg;
+              switch (category) {
+                case 'Safe':
+                  bg = Colors.green.shade600;
+                  break;
+                case 'Caution':
+                  bg = Colors.amber.shade700;
+                  break;
+                case 'Risky':
+                  bg = Colors.orange.shade800;
+                  break;
+                default:
+                  bg = Colors.red.shade700;
+              }
+              return Container(
+                width: double.infinity,
+                color: bg,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Safety Score',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600)),
+                    Text('${score.toStringAsFixed(1)} • $category',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: GoogleMap(
+              initialCameraPosition:
+                  CameraPosition(target: _currentPosition, zoom: 16),
+              markers: _markers,
+              circles: _circles,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
+              onMapCreated: (GoogleMapController controller) {
+                _mapController = controller;
+                _moveCameraToCurrentPosition();
+              },
+              onLongPress: (position) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Zone editing not available in this view'),
+                      backgroundColor: Colors.blue),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -6,6 +6,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../services/voice_assistant_service.dart';
 import '../services/tts_service.dart';
 import '../services/chat_session_service.dart';
 
@@ -28,10 +30,18 @@ class _ChatScreenState extends State<ChatScreen> {
   final TtsService _tts = TtsService();
   bool _ttsEnabled = true;
   StreamSubscription<String>? _sessionSub;
+  final VoiceAssistantService _vas = VoiceAssistantService();
+  // Active listening (push-to-talk) state
+  bool _activeListening = false;
+  String _partialTranscript = '';
+  StreamSubscription<VoiceAssistantEvent>? _vasEventSub;
+  bool _gotFinalThisSession = false;
+  int _pttSessionCounter =
+      0; // increments per mic session to ignore stale events
 
   static final String _geminiKey = dotenv.env['GEMINI_API'] ?? '';
   static final String _googleKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
-  // OpenWeatherMap API key (must be set in .env as WEATHER_API_KEY)
+  // OpenWeatherMap API key (must be set in .env as OPENWEATHER_API_KEY)
   static final String _weatherKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
 
   // Tracking preference key (kept in sync with home_screen) & gating message
@@ -151,7 +161,7 @@ class _ChatScreenState extends State<ChatScreen> {
   // 🔹 Weather via OpenWeatherMap (requires WEATHER_API_KEY). Provides temp, description, humidity & wind.
   Future<String> _getWeather() async {
     if (_weatherKey.isEmpty) {
-      return 'Weather API key missing. Add WEATHER_API_KEY to .env and restart the app.';
+      return 'Weather API key missing. Add OPENWEATHER_API_KEY to .env and restart the app.';
     }
 
     Position pos;
@@ -222,7 +232,7 @@ class _ChatScreenState extends State<ChatScreen> {
   // 🔹 Weather for a specified city name (uses geocoding then regular weather fetch)
   Future<String> _getWeatherForCity(String city) async {
     if (_weatherKey.isEmpty) {
-      return 'Weather API key missing. Add WEATHER_API_KEY to .env and restart the app.';
+      return 'Weather API key missing. Add OPENWEATHER_API_KEY to .env and restart the app.';
     }
     final coords = await _geocodeCity(city);
     if (coords.isEmpty) {
@@ -1082,6 +1092,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     ChatSessionService.instance.setOpen(false);
     _sessionSub?.cancel();
+    _vasEventSub?.cancel();
     _tts.dispose();
     super.dispose();
   }
@@ -1110,79 +1121,249 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(12),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                final isUser = msg['sender'] == 'user';
-                final type = msg['type'] ?? 'text';
-                Widget bubbleChild;
-                if (type == 'places') {
-                  bubbleChild = _buildPlacesBubble(msg);
-                } else if (type == 'route') {
-                  bubbleChild = _buildRouteBubble(msg['route']);
-                } else {
-                  bubbleChild = SelectableText(
-                    msg['text'] ?? '',
-                    style: TextStyle(
-                      color: isUser ? Colors.white : Colors.black,
-                    ),
-                  );
-                }
-                return Align(
-                  alignment:
-                      isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color:
-                            isUser ? Colors.blueAccent : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(12),
+          Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = _messages[index];
+                    final isUser = msg['sender'] == 'user';
+                    final type = msg['type'] ?? 'text';
+                    Widget bubbleChild;
+                    if (type == 'places') {
+                      bubbleChild = _buildPlacesBubble(msg);
+                    } else if (type == 'route') {
+                      bubbleChild = _buildRouteBubble(msg['route']);
+                    } else {
+                      bubbleChild = SelectableText(
+                        msg['text'] ?? '',
+                        style: TextStyle(
+                          color: isUser ? Colors.white : Colors.black,
+                        ),
+                      );
+                    }
+                    return Align(
+                      alignment:
+                          isUser ? Alignment.centerRight : Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isUser
+                                ? Colors.blueAccent
+                                : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: bubbleChild,
+                        ),
                       ),
-                      child: bubbleChild,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: CircularProgressIndicator(),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: "Ask me anything...",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _isLoading ? null : _sendMessage,
-                  color: _isLoading ? Colors.grey : null,
-                  tooltip: _isLoading ? 'Waiting for response...' : 'Send',
+              ),
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: CircularProgressIndicator(),
                 ),
-              ],
-            ),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        decoration: const InputDecoration(
+                          hintText: "Ask me anything...",
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Mic button: activate push-to-talk (no wake word)
+                    IconButton(
+                      icon: const Icon(Icons.mic),
+                      tooltip: 'Speak your query',
+                      onPressed: (_isLoading || _activeListening)
+                          ? null
+                          : () async {
+                              // Request mic permission if needed
+                              final status =
+                                  await Permission.microphone.request();
+                              if (!status.isGranted) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content:
+                                          Text('Microphone permission denied')),
+                                );
+                                return;
+                              }
+                              // Subscribe to voice events for this active session
+                              _vasEventSub?.cancel();
+                              _gotFinalThisSession = false;
+                              final int sessionId = ++_pttSessionCounter;
+                              _vasEventSub = _vas.events.listen((evt) async {
+                                // Ignore events not belonging to the current session
+                                if (sessionId != _pttSessionCounter) return;
+                                switch (evt.type) {
+                                  case VoiceAssistantEventType.sttListening:
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _activeListening = true;
+                                      _partialTranscript = '';
+                                    });
+                                    break;
+                                  case VoiceAssistantEventType.partialResult:
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _partialTranscript = evt.data ?? '';
+                                    });
+                                    break;
+                                  case VoiceAssistantEventType.finalResult:
+                                    {
+                                      final text = (evt.data ?? '').trim();
+                                      _gotFinalThisSession = true;
+                                      if (!mounted) return;
+                                      setState(() {
+                                        _activeListening = false;
+                                        _partialTranscript = '';
+                                        if (text.isNotEmpty) {
+                                          _messages.add(
+                                              {'sender': 'user', 'text': text});
+                                          _isLoading = true;
+                                        }
+                                      });
+                                      _vasEventSub?.cancel();
+                                      // Invalidate this session so any trailing events are ignored
+                                      _pttSessionCounter++;
+                                      if (text.isNotEmpty) {
+                                        _scrollToBottomDeferred();
+                                        await _handleUserQuery(text);
+                                      } 
+                                    }
+                                    break;
+                                  case VoiceAssistantEventType.error:
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _activeListening = false;
+                                      _partialTranscript = '';
+                                    });
+                                    _vasEventSub?.cancel();
+                                    _pttSessionCounter++; // end session
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(
+                                              'Speech error: ${evt.data ?? 'unknown'}')),
+                                    );
+                                    break;
+                                  case VoiceAssistantEventType.resumedWake:
+                                    // STT session ended; show 'didn't catch' only
+                                    // if a final result was NOT received. Delay slightly
+                                    // to avoid race with finalResult handler.
+                                    if (!mounted) return;
+                                    if (_activeListening) {
+                                      setState(() {
+                                        _activeListening = false;
+                                        _partialTranscript = '';
+                                      });
+                                    }
+                                    _vasEventSub?.cancel();
+                                    Future.delayed(
+                                        const Duration(milliseconds: 80), () {
+                                      // If another session started, ignore
+                                      if (sessionId != _pttSessionCounter)
+                                        return;
+                                      if (!mounted) return;
+                                      
+                                    });
+                                    break;
+                                  default:
+                                    break;
+                                }
+                              });
+                              await _vas.startActiveListening(
+                                  pauseFor: const Duration(seconds: 5));
+                            },
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: _isLoading ? null : _sendMessage,
+                      color: _isLoading ? Colors.grey : null,
+                      tooltip: _isLoading ? 'Waiting for response...' : 'Send',
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          if (_activeListening) _buildListeningOverlay(context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildListeningOverlay(BuildContext context) {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black54,
+        alignment: Alignment.center,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Icon(Icons.mic, size: 40, color: Colors.redAccent),
+              const SizedBox(height: 8),
+              const Text('Listening…',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              if (_partialTranscript.isNotEmpty)
+                Text(
+                  _partialTranscript,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.black87),
+                )
+              else
+                const Text('Speak now',
+                    style: TextStyle(color: Colors.black54)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: () async {
+                      _vas.stopListening();
+                      if (!mounted) return;
+                      setState(() {
+                        _activeListening = false;
+                        _partialTranscript = '';
+                      });
+                      _vasEventSub?.cancel();
+                    },
+                    icon: const Icon(Icons.stop, color: Colors.redAccent),
+                    label: const Text('Stop'),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
       ),
     );
   }
