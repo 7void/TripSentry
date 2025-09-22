@@ -4,19 +4,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geofence_service/geofence_service.dart' as gf;
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:permission_handler/permission_handler.dart';
 
 import '../services/alert_service.dart';
-import '../services/zone_config.dart';
+import '../services/hazard_zones.dart';
 
 /// Headless-style geofencing handler that stays active regardless of the UI screen.
 /// It listens to auth state and starts/stops accordingly. On Android, the
 /// geofence_service package handles background callbacks.
 class GeofenceBackgroundService {
   GeofenceBackgroundService._();
-  static final GeofenceBackgroundService instance = GeofenceBackgroundService._();
+  static final GeofenceBackgroundService instance =
+      GeofenceBackgroundService._();
 
   final gf.GeofenceService _service = gf.GeofenceService.instance.setup(
     interval: 5000,
@@ -32,7 +32,8 @@ class GeofenceBackgroundService {
   StreamSubscription<User?>? _authSub;
   bool _started = false;
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
   bool _notificationsInit = false;
 
   Future<void> init() async {
@@ -61,46 +62,60 @@ class GeofenceBackgroundService {
     // Permissions (best-effort; UI should have requested persistent permissions earlier)
     final locAlways = await Permission.locationAlways.request();
     if (!locAlways.isGranted) {
-      debugPrint('[GeofenceBG] locationAlways not granted; geofencing may not run in background.');
+      debugPrint(
+          '[GeofenceBG] locationAlways not granted; geofencing may not run in background.');
     }
     await Permission.notification.request();
 
-    // Build geofence list from config
-    final List<gf.Geofence> geofenceList = [
-      ...kUnsafeZones.map((LatLng zone) => gf.Geofence(
-            id: formatZoneId(zone),
-            latitude: zone.latitude,
-            longitude: zone.longitude,
-            radius: [gf.GeofenceRadius(id: 'r1', length: kGeofenceRadiusMeters)],
-          )),
-      ...kSafeZones.map((LatLng zone) => gf.Geofence(
-            id: zone.toString(),
-            latitude: zone.latitude,
-            longitude: zone.longitude,
-            radius: [gf.GeofenceRadius(id: 'r1', length: kGeofenceRadiusMeters)],
-          )),
-    ];
+    // Build geofence list from hazard zones (all severities are treated as hazards)
+    final List<gf.Geofence> geofenceList = hazardZones
+        .map((hz) => gf.Geofence(
+              id: hz.id,
+              latitude: hz.center.latitude,
+              longitude: hz.center.longitude,
+              radius: [
+                gf.GeofenceRadius(
+                    id: 'r_${hz.radiusMeters}',
+                    length: hz.radiusMeters.toDouble())
+              ],
+            ))
+        .toList(growable: false);
 
     _service.addGeofenceStatusChangeListener(
-      (gf.Geofence geofence, gf.GeofenceRadius radius, gf.GeofenceStatus status, gf.Location location) async {
-        final bool isUnsafeZone = geofence.id.startsWith('zone_');
+      (gf.Geofence geofence, gf.GeofenceRadius radius, gf.GeofenceStatus status,
+          gf.Location location) async {
+        // Resolve severity for nicer notification text
+        HazardSeverity? severityFor(String id) {
+          for (final hz in hazardZones) {
+            if (hz.id == id) return hz.severity;
+          }
+          return null;
+        }
+
+        final sev = severityFor(geofence.id);
+        final isHazard = sev != null; // all listed zones are hazards
         if (status == gf.GeofenceStatus.ENTER) {
-          if (isUnsafeZone) {
-            await _notify('⚠️ Entered Unsafe Zone', 'You entered ${geofence.id}');
+          if (isHazard) {
+            final title = switch (sev) {
+              HazardSeverity.mild => '⚠️ Entered Mild Hazard',
+              HazardSeverity.moderate => '⚠️ Entered Moderate Hazard',
+              HazardSeverity.severe => '🚨 Entered Severe Hazard',
+            };
+            await _notify(title, 'You entered ${geofence.id}');
             AlertService.instance.createGeofencingAlert(
               zoneId: geofence.id,
               latitude: location.latitude,
               longitude: location.longitude,
             );
           } else {
-            await _notify('ℹ️ Entered Safe Zone', 'You entered a designated safe area');
+            await _notify('ℹ️ Entered Zone', 'You entered ${geofence.id}');
           }
         } else if (status == gf.GeofenceStatus.EXIT) {
-          if (isUnsafeZone) {
+          if (isHazard) {
             AlertService.instance.resolveGeofencingAlert(geofence.id);
-            await _notify('✅ Left Unsafe Zone', 'You exited ${geofence.id}');
+            await _notify('✅ Left Hazard Zone', 'You exited ${geofence.id}');
           } else {
-            await _notify('ℹ️ Left Safe Zone', 'You left a safe area');
+            await _notify('ℹ️ Left Zone', 'You left ${geofence.id}');
           }
         }
       },
@@ -142,22 +157,22 @@ class GeofenceBackgroundService {
       final pos = await geo.Geolocator.getCurrentPosition(
         desiredAccuracy: geo.LocationAccuracy.high,
       );
-      for (final zone in kUnsafeZones) {
+      for (final hz in hazardZones) {
         final distance = geo.Geolocator.distanceBetween(
           pos.latitude,
           pos.longitude,
-          zone.latitude,
-          zone.longitude,
+          hz.center.latitude,
+          hz.center.longitude,
         );
-        if (distance <= kGeofenceRadiusMeters) {
-          final zoneId = formatZoneId(zone);
-          debugPrint('[GeofenceBG] Already inside unsafe zone $zoneId at service start.');
+        if (distance <= hz.radiusMeters) {
+          debugPrint(
+              '[GeofenceBG] Already inside hazard ${hz.id} at service start.');
           AlertService.instance.createGeofencingAlert(
-            zoneId: zoneId,
+            zoneId: hz.id,
             latitude: pos.latitude,
             longitude: pos.longitude,
           );
-          await _notify('⚠️ Inside Unsafe Zone', 'You are inside $zoneId');
+          await _notify('⚠️ Inside Hazard Zone', 'You are inside ${hz.id}');
           break; // only first matching zone
         }
       }

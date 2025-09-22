@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/zone_config.dart';
+// zone_config is no longer needed for this screen; using hazard_zones instead.
+import '../services/hazard_zones.dart';
 
 class GeoFencingScreen extends StatefulWidget {
   const GeoFencingScreen({super.key});
@@ -28,7 +29,7 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
     super.initState();
     _loadPreferences();
     _checkPermissionAndStartTracking();
-    _addGeofenceCircles();
+    _buildHazardCircles();
   }
 
   // Load toggle state
@@ -73,39 +74,37 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
         _updateMarker();
       });
       if (!mounted || _disposed) return;
-  _moveCameraToCurrentPosition();
-  // Removed manual _checkUnsafeZones() to avoid duplicate alert creation; relying on geofence ENTER events.
+      _moveCameraToCurrentPosition();
+      // Removed manual _checkUnsafeZones() to avoid duplicate alert creation; relying on geofence ENTER events.
     });
   }
 
-  // Add red and green geofence circles
-  void _addGeofenceCircles() {
+  // Build hazard circles with color by severity
+  void _buildHazardCircles() {
     _circles.clear();
-    for (var zone in kUnsafeZones) {
+    for (final hz in hazardZones) {
+      final color = () {
+        switch (hz.severity) {
+          case HazardSeverity.mild:
+            return Colors.yellow;
+          case HazardSeverity.moderate:
+            return Colors.orange;
+          case HazardSeverity.severe:
+            return Colors.red;
+        }
+      }();
       _circles.add(
         Circle(
-          circleId: CircleId('unsafe_${zone.latitude}_${zone.longitude}'),
-          center: zone,
-          radius: kGeofenceRadiusMeters,
-          fillColor: Colors.red.withOpacity(0.3),
-          strokeColor: Colors.red,
+          circleId: CircleId(hz.id),
+          center: hz.center,
+          radius: hz.radiusMeters.toDouble(),
+          fillColor: color.withOpacity(0.25),
+          strokeColor: color,
           strokeWidth: 2,
         ),
       );
     }
-    for (var safeZone in kSafeZones) {
-      _circles.add(
-        Circle(
-          circleId: CircleId('safe_${safeZone.latitude}_${safeZone.longitude}'),
-          center: safeZone,
-          radius: kGeofenceRadiusMeters,
-          fillColor: Colors.green.withOpacity(0.1),
-          strokeColor: Colors.green,
-          strokeWidth: 2,
-        ),
-      );
-    }
-  if (mounted && !_disposed) setState(() {});
+    if (mounted && !_disposed) setState(() {});
   }
 
   void _updateMarker() {
@@ -155,7 +154,8 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
         ],
       ),
       body: GoogleMap(
-        initialCameraPosition: CameraPosition(target: _currentPosition, zoom: 16),
+        initialCameraPosition:
+            CameraPosition(target: _currentPosition, zoom: 16),
         markers: _markers,
         circles: _circles,
         myLocationEnabled: true,
@@ -166,7 +166,9 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
         },
         onLongPress: (position) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Zone editing not available in this view'), backgroundColor: Colors.blue),
+            const SnackBar(
+                content: Text('Zone editing not available in this view'),
+                backgroundColor: Colors.blue),
           );
         },
       ),
@@ -175,7 +177,7 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
 
   @override
   void dispose() {
-  _disposed = true;
+    _disposed = true;
     _positionSub?.cancel();
     _mapController?.dispose();
     super.dispose();
