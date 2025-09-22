@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,13 +19,21 @@ class _QrCheckinScreenState extends State<QrCheckinScreen> {
 
   // Parsed fields
   String? _name;
-  DateTime? _dob;
   String? _passport;
   String? _aadhaar;
+  String? _phone;
+  String _qrData = '';
 
   @override
   void initState() {
     super.initState();
+    // Default QR payload with N/A values while loading
+    _qrData = jsonEncode({
+      'name': 'N/A',
+      'passportNumber': 'N/A',
+      'aadharNumber': 'N/A',
+      'phoneNumber': 'N/A',
+    });
     _fetchFromFirestore();
   }
 
@@ -53,31 +62,37 @@ class _QrCheckinScreenState extends State<QrCheckinScreen> {
       // Prefer explicit fields; fallback to FirebaseAuth.displayName
       final name = (data['fullName'] ?? data['name'] ?? user.displayName ?? 'Unknown').toString();
 
-      // Try common keys for date of birth
-      DateTime? dob;
-      final dobRaw = data['dateOfBirth'] ?? data['dob'];
-      if (dobRaw is String) {
-        try {
-          dob = DateTime.parse(dobRaw);
-        } catch (_) {}
-      } else if (dobRaw is Timestamp) {
-        dob = dobRaw.toDate();
-      }
-
       // Unhashed values from Firestore; compute hashed for display
       final passport = (data['passportNumber'] ?? '').toString();
       final aadhaar = (data['aadharNumber'] ?? '').toString();
+      final phone = (data['phoneNumber'] ?? FirebaseAuth.instance.currentUser?.phoneNumber ?? '').toString();
+
+      // Build QR payload JSON from Firestore fields with N/A fallbacks
+      final qrPayload = jsonEncode({
+        'name': (name.isNotEmpty ? name : 'N/A'),
+        'passportNumber': (passport.isNotEmpty ? passport : 'N/A'),
+        'aadharNumber': (aadhaar.isNotEmpty ? aadhaar : 'N/A'),
+        'phoneNumber': (phone.isNotEmpty ? phone : 'N/A'),
+      });
 
       setState(() {
         _name = name;
-        _dob = dob;
         _passport = passport.isNotEmpty ? passport : null;
         _aadhaar = aadhaar.isNotEmpty ? aadhaar : null;
+        _phone = phone.isNotEmpty ? phone : null;
+        _qrData = qrPayload;
         _loading = false;
       });
     } catch (e) {
       setState(() {
         _error = e.toString();
+        // Fallback QR with N/A values on error
+        _qrData = jsonEncode({
+          'name': 'N/A',
+          'passportNumber': 'N/A',
+          'aadharNumber': 'N/A',
+          'phoneNumber': 'N/A',
+        });
         _loading = false;
       });
     }
@@ -85,7 +100,7 @@ class _QrCheckinScreenState extends State<QrCheckinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final qrData = 'ipfs://${widget.cid}';
+  final qrData = _qrData;
     final size = MediaQuery.of(context).size;
     final qrSize = size.width * 0.7; // large QR on top
 
@@ -136,7 +151,7 @@ class _QrCheckinScreenState extends State<QrCheckinScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Loading tourist details from IPFS...\nCID: ${widget.cid}',
+                          'Loading tourist details from Firestore...\nCID: ${widget.cid}',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
@@ -210,18 +225,14 @@ class _QrCheckinScreenState extends State<QrCheckinScreen> {
                       const SizedBox(height: 12),
                       _buildInfoRow(context, 'Name', _name ?? '-'),
                       const SizedBox(height: 8),
-                      _buildInfoRow(
-                          context,
-                          'DOB',
-                          _dob != null
-                              ? '${_dob!.day}/${_dob!.month}/${_dob!.year}'
-                              : '-'),
-                      const SizedBox(height: 8),
-                      _buildInfoRow(context, 'Passport (hashed)',
+                      
+          _buildInfoRow(context, 'Passport',
               _passport ?? '-'),
                       const SizedBox(height: 8),
             _buildInfoRow(context, 'Aadhaar',
               _aadhaar ?? '-'),
+          const SizedBox(height: 8),
+          _buildInfoRow(context, 'Phone', _phone ?? '-'),
                       const SizedBox(height: 12),
                       SelectableText(
                         'CID: ${widget.cid}',

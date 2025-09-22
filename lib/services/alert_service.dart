@@ -10,7 +10,7 @@ class AlertService {
 
   DateTime? _lastGeofenceAlertTime;
   String? _lastZoneId;
-  final Duration debounce = const Duration(minutes: 2);
+  final Duration debounce = Duration.zero; // Debounce disabled to allow immediate re-alerts
   bool _inFlight = false; // simple in-memory mutex for concurrent triggers
   final Duration staleThreshold = const Duration(minutes: 5);
   // Keep track of most recent active alert docId per zone to enable fast resolution without query.
@@ -37,8 +37,15 @@ class AlertService {
           if (data != null && data['resolvedAt'] == null) {
             await docRef.update({'resolvedAt': FieldValue.serverTimestamp()});
             debugPrint('[AlertService] Resolved (cached) geofence alert zoneId=$zoneId docId=$docId');
+            await _archiveToPast(docRef);
+            _activeZoneAlertDocIds.remove(zoneId);
           } else {
             debugPrint('[AlertService] Cached alert already resolved or missing field zoneId=$zoneId');
+            // ensure it's archived if still in active
+            try { await _archiveToPast(docRef); } catch (e) {
+              debugPrint('[AlertService] Archive (cached) skipped/failed: $e');
+            }
+            _activeZoneAlertDocIds.remove(zoneId);
           }
         } else {
           debugPrint('[AlertService] Cached docId not found; falling back to query zoneId=$zoneId');
@@ -54,10 +61,12 @@ class AlertService {
             .limit(1)
             .get();
         if (snapshot.docs.isEmpty) return;
-        await snapshot.docs.first.reference.update({
+        final docRef = snapshot.docs.first.reference;
+        await docRef.update({
           'resolvedAt': FieldValue.serverTimestamp(),
         });
         debugPrint('[AlertService] Resolved (queried) geofence alert zoneId=$zoneId');
+  await _archiveToPast(docRef);
         _activeZoneAlertDocIds.remove(zoneId); // remove mapping to avoid stale reference
       }
     } catch (e) {
@@ -126,6 +135,9 @@ class AlertService {
         if (isStale) {
           debugPrint('[AlertService] Existing alert is stale (> ${staleThreshold.inMinutes}m). Resolving then creating new.');
           await doc.reference.update({'resolvedAt': FieldValue.serverTimestamp()});
+          try { await _archiveToPast(doc.reference); } catch (e) {
+            debugPrint('[AlertService] Failed archiving stale alert: $e');
+          }
         }
       }
 
@@ -199,6 +211,43 @@ class AlertService {
     } catch (e, st) {
       debugPrint('[AlertService] ERROR creating emergency alert: $e');
       debugPrint(st.toString());
+    }
+  }
+  
+  /// Copy active alert to users/{uid}/alerts/past/items/{id} and delete from active.
+  Future<void> _archiveToPast(DocumentReference<Map<String, dynamic>> activeDocRef) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      debugPrint('[AlertService] _archiveToPast skipped – no user.');
+      return;
+    }
+
+    try {
+      final pastDocRef = _fs
+          .collection('users').doc(user.uid)
+          .collection('alerts').doc('past')
+          .collection('items').doc(activeDocRef.id);
+
+      // Fetch once, then batch write to avoid transaction quirks and ensure immediate action
+      final snap = await activeDocRef.get();
+      if (!snap.exists) {
+        debugPrint('[AlertService] _archiveToPast: active doc missing (already archived/deleted?) id=${activeDocRef.id}');
+        return;
+      }
+      final data = Map<String, dynamic>.from(snap.data() ?? <String, dynamic>{});
+      if (data['resolvedAt'] == null) {
+        data['resolvedAt'] = FieldValue.serverTimestamp();
+      }
+
+      final batch = _fs.batch();
+      batch.set(pastDocRef, data, SetOptions(merge: true));
+      batch.delete(activeDocRef);
+      await batch.commit();
+      debugPrint('[AlertService] Archived alert to past and deleted active id=${activeDocRef.id}');
+    } catch (e, st) {
+      debugPrint('[AlertService] ERROR in _archiveToPast: $e');
+      debugPrint(st.toString());
+      rethrow;
     }
   }
 }

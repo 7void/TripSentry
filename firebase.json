@@ -1,1 +1,24 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"touristapp-2941f","appId":"1:514911857172:android:590a639bee0888bac29501","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"touristapp-2941f","configurations":{"android":"1:514911857172:android:590a639bee0888bac29501","ios":"1:514911857172:ios:d83942531b3f63ebc29501","macos":"1:514911857172:ios:d83942531b3f63ebc29501","web":"1:514911857172:web:364fe3318ff52583c29501"}}}}}}
+{
+	"flutter": {
+		"platforms": {
+			"android": {
+				"default": {
+					"projectId": "touristapp-2941f",
+					"appId": "1:514911857172:android:590a639bee0888bac29501",
+					"fileOutput": "android/app/google-services.json"
+				}
+			},
+			"dart": {
+				"lib/firebase_options.dart": {
+					"projectId": "touristapp-2941f",
+					"configurations": {
+						"android": "1:514911857172:android:590a639bee0888bac29501",
+						"ios": "1:514911857172:ios:d83942531b3f63ebc29501",
+						"macos": "1:514911857172:ios:d83942531b3f63ebc29501",
+						"web": "1:514911857172:web:364fe3318ff52583c29501"
+					}
+				}
+			}
+		}
+	}
+}

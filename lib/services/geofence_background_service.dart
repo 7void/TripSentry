@@ -21,8 +21,8 @@ class GeofenceBackgroundService {
   final gf.GeofenceService _service = gf.GeofenceService.instance.setup(
     interval: 5000,
     accuracy: 100,
-    loiteringDelayMs: 60000,
-    statusChangeDelayMs: 10000,
+    loiteringDelayMs: 0,
+    statusChangeDelayMs: 0,
     useActivityRecognition: false,
     allowMockLocations: false,
     printDevLog: true,

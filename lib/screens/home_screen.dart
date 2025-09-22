@@ -461,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.of(context).pushNamed('/tourist-id-details');
                     },
                     icon: const Icon(Icons.visibility),
-                    label: const Text('View Details'),
+                    label: const Text('View ID'),
                   ),
                 ),
                 const SizedBox(width: 12),

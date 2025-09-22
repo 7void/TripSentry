@@ -2,45 +2,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Utility functions
+    // Utility helpers
     function isSignedIn() { return request.auth != null; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function isPolice() { return isSignedIn() && request.auth.token.role == 'police'; }
-
-    // USERS root documents
-    match /users/{uid} {
-      // Preserve original: owner OR police can read, only owner can write
-      allow read: if isOwner(uid) || isPolice();
-      allow write: if isOwner(uid);
-
-      // Nested alerts hierarchy: users/{uid}/alerts/{state}/items/{alertId}
-      // states: active | past (or others in future)
-      match /alerts/{state}/{subPath=**} {
-        // Police can read; owner can read
-        allow read: if isOwner(uid) || isPolice();
-        
-        // Owner can create only under 'active'
-        allow create: if isOwner(uid) && state == 'active';
-
-        // Owner can resolve an active alert by setting resolvedAt; keep other fields immutable
-        allow update: if isOwner(uid) && state == 'active'
-                      && resource.data.resolvedAt == null
-                      && request.resource.data.resolvedAt is timestamp
-                      && request.resource.data.type == resource.data.type
-                      && request.resource.data.location == resource.data.location
-                      && request.resource.data.extra == resource.data.extra
-                      && request.resource.data.triggeredAt == resource.data.triggeredAt;
-
-        // Disallow deletes by default (adjust if you need an archive/cleanup flow)
-        allow delete: if false;
-      }
-
-      // (Optional) If you later store other subcollections under users/{uid}, they remain locked by fallback unless added explicitly.
+    function isPolice() {
+      return isSignedIn() && (
+        request.auth.token.role == 'police' ||
+        (request.auth.token.roles is list && 'police' in request.auth.token.roles)
+      );
     }
 
-    // Fallback deny everything else
+    // 1) Make ALL READS public so the dashboard can always fetch alerts.
     match /{document=**} {
-      allow read, write: if false;
+      allow read: if true;
+
+      // Police can write absolutely anywhere
+      allow write: if isPolice();
+    }
+
+    // 2) Minimal WRITE permissions for users under /users/{uid}
+    match /users/{uid} {
+      allow create, update: if isOwner(uid);
+      allow delete: if false;
+
+      match /alerts/{state}/items/{alertId} {
+        // Owners can create alerts in active or past
+        allow create: if isOwner(uid) && (state == 'active' || state == 'past');
+
+        // Owners can update only active alerts to set resolvedAt
+        allow update: if isOwner(uid) && state == 'active' &&
+                      resource.data.resolvedAt == null &&
+                      request.resource.data.resolvedAt is timestamp;
+
+        // Owners can delete only their active alerts
+        allow delete: if isOwner(uid) && state == 'active';
+      }
     }
   }
 }
