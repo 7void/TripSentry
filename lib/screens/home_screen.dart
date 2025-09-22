@@ -343,7 +343,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.location_on, color: Color.fromARGB(221, 233, 35, 35)),
+                const Icon(Icons.location_on,
+                    color: Color.fromARGB(221, 233, 35, 35)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -561,7 +562,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (cid == null || cid.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('No metadata found for your Tourist ID.'),
+                            content:
+                                Text('No metadata found for your Tourist ID.'),
                           ),
                         );
                         return;
@@ -608,7 +610,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            
+            // Removed duplicate Emergency and AI Chat row per request
           ],
         ),
       ),

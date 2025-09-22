@@ -59,6 +59,7 @@ dependencies:
   cloud_firestore: ^6.0.1
   firebase_database: ^12.0.1
   url_launcher: ^6.3.0
+  flutter_phone_direct_caller: ^2.1.1
 
 dev_dependencies:
   flutter_test:
