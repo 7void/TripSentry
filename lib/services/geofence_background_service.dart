@@ -6,9 +6,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geofence_service/geofence_service.dart' as gf;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/alert_service.dart';
 import '../services/hazard_zones.dart';
+import '../services/risk_score_service.dart';
 
 /// Headless-style geofencing handler that stays active regardless of the UI screen.
 /// It listens to auth state and starts/stops accordingly. On Android, the
@@ -31,6 +33,7 @@ class GeofenceBackgroundService {
   final _auth = FirebaseAuth.instance;
   StreamSubscription<User?>? _authSub;
   bool _started = false;
+  StreamSubscription<RiskScoreUpdate>? _riskSub;
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -49,8 +52,33 @@ class GeofenceBackgroundService {
 
     _authSub ??= _auth.authStateChanges().listen((u) async {
       if (u != null) {
+        // Initialize risk score service when a user signs in.
+        await RiskScoreService.instance.init();
+        // Subscribe to risk score updates and sync to Firestore
+        _riskSub?.cancel();
+        _riskSub = RiskScoreService.instance.stream.listen((update) async {
+          final uid = _auth.currentUser?.uid;
+          if (uid == null) return;
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(uid).set({
+              'safetyScore':
+                  double.parse(update.safetyScore.toStringAsFixed(2)),
+              'riskExposure':
+                  double.parse(update.riskExposure.toStringAsFixed(4)),
+              'safetyCategory': update.category,
+              'riskFactor': RiskScoreService.instance.factor,
+              'safetyScoreUpdatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (e) {
+            debugPrint('[GeofenceBG] Failed to sync Safety Score: $e');
+          }
+        });
+        // Ensure Firestore has an initial snapshot
+        await _syncCurrentRiskScoreIfAny();
         await start();
       } else {
+        await _riskSub?.cancel();
+        _riskSub = null;
         await stop();
       }
     });
@@ -102,6 +130,12 @@ class GeofenceBackgroundService {
               HazardSeverity.severe => '🚨 Entered Severe Hazard',
             };
             await _notify(title, 'You entered ${geofence.id}');
+            // Start risk session on ENTER
+            await RiskScoreService.instance.onEnter(
+              geofence.id,
+              sev,
+              startTime: DateTime.now(),
+            );
             AlertService.instance.createGeofencingAlert(
               zoneId: geofence.id,
               latitude: location.latitude,
@@ -112,6 +146,12 @@ class GeofenceBackgroundService {
           }
         } else if (status == gf.GeofenceStatus.EXIT) {
           if (isHazard) {
+            // End risk session on EXIT
+            await RiskScoreService.instance.onExit(
+              geofence.id,
+              sev,
+              endTime: DateTime.now(),
+            );
             AlertService.instance.resolveGeofencingAlert(geofence.id);
             await _notify('✅ Left Hazard Zone', 'You exited ${geofence.id}');
           } else {
@@ -133,8 +173,33 @@ class GeofenceBackgroundService {
 
   Future<void> stop() async {
     if (!_started) return;
+    // Finalize ongoing risk sessions up to now
+    try {
+      await RiskScoreService.instance.finalizeAllActive();
+    } catch (e) {
+      debugPrint('[GeofenceBG] finalizeAllActive failed: $e');
+    }
     await _service.stop();
     _started = false;
+  }
+
+  Future<void> _syncCurrentRiskScoreIfAny() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = RiskScoreService.instance.snapshot();
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'safetyScore': double.parse(
+            (snap['safetyScore'] as double? ?? 100.0).toStringAsFixed(2)),
+        'riskExposure': double.parse(
+            (snap['riskExposure'] as double? ?? 0.0).toStringAsFixed(4)),
+        'safetyCategory': (snap['category'] as String? ?? 'Safe'),
+        'riskFactor': (snap['factor'] as double? ?? 2.0),
+        'safetyScoreUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('[GeofenceBG] Initial Safety Score sync failed: $e');
+    }
   }
 
   Future<void> _notify(String title, String body) async {
@@ -167,6 +232,8 @@ class GeofenceBackgroundService {
         if (distance <= hz.radiusMeters) {
           debugPrint(
               '[GeofenceBG] Already inside hazard ${hz.id} at service start.');
+          // Begin a risk session from "now" for the zone we're already inside
+          await RiskScoreService.instance.onEnter(hz.id, hz.severity);
           AlertService.instance.createGeofencingAlert(
             zoneId: hz.id,
             latitude: pos.latitude,

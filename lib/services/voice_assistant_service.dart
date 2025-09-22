@@ -29,6 +29,15 @@ class VoiceAssistantEvent {
 }
 
 class VoiceAssistantService {
+  // Singleton instance so wake-word + one-shot STT share the same audio resources
+  static final VoiceAssistantService _instance =
+      VoiceAssistantService._internal();
+  factory VoiceAssistantService() => _instance;
+
+  VoiceAssistantService._internal() {
+    _speech = stt.SpeechToText();
+  }
+
   PorcupineManager? _porcupineManager;
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -41,8 +50,120 @@ class VoiceAssistantService {
   final _controller = StreamController<VoiceAssistantEvent>.broadcast();
   Stream<VoiceAssistantEvent> get events => _controller.stream;
 
-  VoiceAssistantService() {
-    _speech = stt.SpeechToText();
+  /// One-shot STT capture for explicit UI actions (e.g., mic button in chat).
+  /// Returns the recognized final text, or the last partial if final not produced, or null on failure/cancel.
+  Future<String?> listenOnce(
+      {Duration pauseFor = const Duration(seconds: 5)}) async {
+    // Pause wake word engine if running
+    if (_wakeWordActive) {
+      try {
+        await _porcupineManager?.stop();
+      } catch (_) {}
+      _wakeWordActive = false;
+    }
+
+    final completer = Completer<String?>();
+    String? lastPartial;
+    try {
+      final available = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'notListening' && !completer.isCompleted) {
+            completer.complete(
+                (lastPartial != null && lastPartial!.trim().isNotEmpty)
+                    ? lastPartial!.trim()
+                    : null);
+          }
+        },
+        onError: (error) {
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
+        },
+      );
+      if (!available) {
+        _restartWakeWordSafely();
+        return null;
+      }
+      _isListening = true;
+      _speech.listen(
+        onResult: (result) async {
+          if (result.finalResult && !completer.isCompleted) {
+            completer.complete(result.recognizedWords);
+            await _speech.stop();
+            _isListening = false;
+          } else if (!result.finalResult && result.recognizedWords.isNotEmpty) {
+            lastPartial = result.recognizedWords;
+          }
+        },
+        listenMode: stt.ListenMode.confirmation,
+        pauseFor: pauseFor,
+        partialResults: true,
+      );
+      final text = await completer.future;
+      // Ensure listening is stopped
+      if (_isListening) {
+        try {
+          await _speech.stop();
+        } catch (_) {}
+        _isListening = false;
+      }
+      // Resume wake word
+      _restartWakeWordSafely();
+      return (text != null && text.trim().isNotEmpty) ? text.trim() : null;
+    } catch (_) {
+      // On any error, try to resume wake word
+      _restartWakeWordSafely();
+      return null;
+    }
+  }
+
+  /// Push-to-talk: start STT immediately (bypasses wake word). UI can read
+  /// events stream for partial/final results. Call stopListening() to end early.
+  /// If wake word was active, it will be paused and then resumed automatically
+  /// when STT ends.
+  Future<void> startActiveListening({
+    Duration pauseFor = const Duration(seconds: 5),
+  }) async {
+    // Pause wake word engine if running
+    if (_wakeWordActive) {
+      try {
+        await _porcupineManager?.stop();
+      } catch (_) {}
+      _wakeWordActive = false;
+    }
+
+    final available = await _speech.initialize(
+      onStatus: (status) {
+        if (status == 'notListening') {
+          _finishListening(restartWakeWord: true);
+        }
+      },
+      onError: (error) {
+        _emit(VoiceAssistantEventType.error, 'Speech error: $error');
+        _finishListening(restartWakeWord: true);
+      },
+    );
+    if (!available) {
+      _emit(VoiceAssistantEventType.error, 'Speech recognition not available');
+      _restartWakeWordSafely();
+      return;
+    }
+
+    _isListening = true;
+    _emit(VoiceAssistantEventType.sttListening, 'active');
+    _speech.listen(
+      onResult: (result) {
+        if (result.finalResult) {
+          _emit(VoiceAssistantEventType.finalResult, result.recognizedWords);
+          _finishListening(restartWakeWord: true);
+        } else if (result.recognizedWords.isNotEmpty) {
+          _emit(VoiceAssistantEventType.partialResult, result.recognizedWords);
+        }
+      },
+      listenMode: stt.ListenMode.confirmation,
+      pauseFor: pauseFor,
+      partialResults: true,
+    );
   }
 
   Future<bool> _assetExists(String path) async {
