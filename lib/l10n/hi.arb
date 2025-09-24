@@ -1,0 +1,67 @@
+{
+  "@@locale": "hi",
+  "appTitle": "पर्यटक सुरक्षा ऐप",
+  "appNameShort": "ट्रिपसेंट्री",
+  "menuRefresh": "रीफ़्रेश",
+  "menuClearData": "डेटा हटाएँ",
+  "menuLogout": "लॉग आउट",
+  "menuClearDataConfirmTitle": "पर्यटक डेटा साफ़ करें",
+  "menuClearDataConfirmBody": "यह आपके पर्यटक डेटा और सभी संबंधित जानकारी को स्थायी रूप से हटा देगा। इसे वापस नहीं किया जा सकता।",
+  "cancel": "रद्द करें",
+  "delete": "हटाएँ",
+
+  "permissionBannerNeedBg": "लगातार सुरक्षा अलर्ट के लिए बैकग्राउंड लोकेशन की अनुमति दें।",
+  "permissionBannerNeedFg": "सुरक्षा ट्रैकिंग और अलर्ट सक्षम करने के लिए लोकेशन एक्सेस की अनुमति दें।",
+  "permissionEnableBg": "बैकग्राउंड सक्षम करें",
+  "permissionEnableFg": "लोकेशन सक्षम करें",
+  "settings": "सेटिंग्स",
+
+  "snackGrantLocationFirst": "पहले लोकेशन अनुमति दें।",
+  "snackEnableBackground": "निरंतर सुरक्षा ट्रैकिंग के लिए 'हमेशा अनुमति दें' सक्षम करें।",
+  "snackBgNeeded": "अलर्ट के लिए बैकग्राउंड लोकेशन आवश्यक है।",
+  "snackFeatureComingSoon": "यह सुविधा जल्द आ रही है!",
+  "snackNoMetadata": "आपके Tourist ID के लिए कोई मेटाडेटा नहीं मिला।",
+  "dismiss": "खारिज करें",
+  "error": "त्रुटि",
+
+  "trackingActive": "ट्रैकिंग चालू (रोकने हेतु टैप करें)",
+  "trackingPaused": "ट्रैकिंग रुकी (दोबारा शुरू हेतु टैप करें)",
+
+  "touristId": "टूरिस्ट आईडी",
+  "tokenId": "टोकन आईडी:",
+  "validUntil": "मान्य तिथि:",
+  "status": "स्थिति:",
+  "active": "सक्रिय",
+  "inactive": "निष्क्रिय",
+  "expired": "समाप्त",
+  "active_caps": "सक्रिय",
+  "viewId": "आईडी देखें",
+
+  "noTouristIdBody": "आपके पास अभी कोई सक्रिय Tourist ID नहीं है। सुरक्षित और सत्यापित यात्रा अनुभव के लिए एक बनाएं।",
+  "createTouristId": "टूरिस्ट आईडी बनाएं",
+
+  "quickActions": "त्वरित क्रियाएँ",
+  "qrCheckIn": "क्यूआर चेक-इन",
+  "emergency": "आपातकाल",
+  "checkIn": "चेक-इन",
+  "geoLocation": "जियो लोकेशन",
+
+  "deleteExpiredTitle": "समाप्त टूरिस्ट आईडी हटाएँ",
+  "deleteExpiredBody": "यह आपके समाप्त टूरिस्ट आईडी को ब्लॉकचेन से स्थायी रूप से हटा देगा। इसे वापस नहीं किया जा सकता।",
+  "deletedSuccessfully": "टूरिस्ट आईडी सफलतापूर्वक हटाई गई",
+  "deleteFailed": "टूरिस्ट आईडी हटाने में विफल",
+
+  "listening": "सुन रहा है…",
+  "noEmergencyNumber": "कोई आपातकालीन संपर्क नंबर नहीं मिला",
+  "invalidEmergencyNumber": "अमान्य आपातकालीन संपर्क नंबर",
+  "unableToCall": "इस डिवाइस पर कॉल शुरू नहीं की जा सकी",
+  "failedToStartCall": "कॉल शुरू करने में विफल: {error}",
+
+  "language": "भाषा",
+  "langEnglish": "English",
+  "langHindi": "हिंदी",
+  "langBengali": "বাংলা",
+  "langTamil": "தமிழ்",
+  "langTelugu": "తెలుగు",
+  "langMalayalam": "മലയാളം"
+}

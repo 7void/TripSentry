@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -47,6 +48,17 @@ class GeofenceBackgroundService {
       const InitializationSettings initializationSettings =
           InitializationSettings(android: initializationSettingsAndroid);
       await _notifications.initialize(initializationSettings);
+      // Ensure channel exists on Android 8+ and needed on Android 13+
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'geofence_channel',
+        'Geofence Alerts',
+        description: 'Notifications for geofence events',
+        importance: Importance.max,
+      );
+      final androidPlugin = _notifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(channel);
       _notificationsInit = true;
     }
 
@@ -87,13 +99,24 @@ class GeofenceBackgroundService {
   Future<void> start() async {
     if (_started) return;
 
-    // Permissions (best-effort; UI should have requested persistent permissions earlier)
-    final locAlways = await Permission.locationAlways.request();
-    if (!locAlways.isGranted) {
-      debugPrint(
-          '[GeofenceBG] locationAlways not granted; geofencing may not run in background.');
+    // Permissions: Avoid requesting here to prevent concurrent permission flows.
+    // The UI layer is responsible for prompting the user. We only check and log.
+    final locStatus = await Permission.location.status;
+    final locAlwaysStatus = await Permission.locationAlways.status;
+    final notifStatus = await Permission.notification.status;
+
+    if (!locStatus.isGranted) {
+      debugPrint('[GeofenceBG] location permission not granted; skipping geofence start.');
+      return;
     }
-    await Permission.notification.request();
+    if (!locAlwaysStatus.isGranted) {
+      debugPrint('[GeofenceBG] locationAlways not granted; background geofencing may be limited.');
+      // Continue with best-effort foreground geofencing.
+    }
+    if (!notifStatus.isGranted) {
+      debugPrint('[GeofenceBG] notification permission not granted; alerts may not be shown.');
+      // Continue; Android < 13 may still show notifications.
+    }
 
     // Build geofence list from hazard zones (all severities are treated as hazards)
     final List<gf.Geofence> geofenceList = hazardZones
@@ -234,11 +257,13 @@ class GeofenceBackgroundService {
               '[GeofenceBG] Already inside hazard ${hz.id} at service start.');
           // Begin a risk session from "now" for the zone we're already inside
           await RiskScoreService.instance.onEnter(hz.id, hz.severity);
-          AlertService.instance.createGeofencingAlert(
-            zoneId: hz.id,
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-          );
+          if (hz.severity == HazardSeverity.severe) {
+            AlertService.instance.createGeofencingAlert(
+              zoneId: hz.id,
+              latitude: pos.latitude,
+              longitude: pos.longitude,
+            );
+          }
           await _notify('⚠️ Inside Hazard Zone', 'You are inside ${hz.id}');
           break; // only first matching zone
         }

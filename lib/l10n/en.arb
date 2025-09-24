@@ -1,0 +1,67 @@
+{
+  "@@locale": "en",
+  "appTitle": "Tourist Safety App",
+  "appNameShort": "TripSentry",
+  "menuRefresh": "Refresh",
+  "menuClearData": "Clear Data",
+  "menuLogout": "Logout",
+  "menuClearDataConfirmTitle": "Clear Tourist Data",
+  "menuClearDataConfirmBody": "This will permanently delete your tourist data and all associated information. This action cannot be undone.",
+  "cancel": "Cancel",
+  "delete": "Delete",
+
+  "permissionBannerNeedBg": "Allow background location to enable continuous safety alerts.",
+  "permissionBannerNeedFg": "Allow location access to enable safety tracking and alerts.",
+  "permissionEnableBg": "Enable Background",
+  "permissionEnableFg": "Enable Location",
+  "settings": "Settings",
+
+  "snackGrantLocationFirst": "Grant location permission first.",
+  "snackEnableBackground": "Enable \"Allow all the time\" for continuous safety tracking.",
+  "snackBgNeeded": "Background location needed for alerts.",
+  "snackFeatureComingSoon": "This feature is coming soon!",
+  "snackNoMetadata": "No metadata found for your Tourist ID.",
+  "dismiss": "Dismiss",
+  "error": "Error",
+
+  "trackingActive": "Tracking Active (tap to pause)",
+  "trackingPaused": "Tracking Paused (tap to resume)",
+
+  "touristId": "Tourist ID",
+  "tokenId": "Token ID:",
+  "validUntil": "Valid Until:",
+  "status": "Status:",
+  "active": "Active",
+  "inactive": "Inactive",
+  "expired": "EXPIRED",
+  "active_caps": "ACTIVE",
+  "viewId": "View ID",
+
+  "noTouristIdBody": "You don't have an active Tourist ID yet. Create one to enjoy a secure and verified travel experience.",
+  "createTouristId": "Create Tourist ID",
+
+  "quickActions": "Quick Actions",
+  "qrCheckIn": "QR Check-In",
+  "emergency": "Emergency",
+  "checkIn": "Check-In",
+  "geoLocation": "Geo Location",
+
+  "deleteExpiredTitle": "Delete Expired Tourist ID",
+  "deleteExpiredBody": "This will permanently delete your expired Tourist ID from the blockchain. This action cannot be undone.",
+  "deletedSuccessfully": "Tourist ID deleted successfully",
+  "deleteFailed": "Failed to delete Tourist ID",
+
+  "listening": "Listening…",
+  "noEmergencyNumber": "No emergency contact number found",
+  "invalidEmergencyNumber": "Invalid emergency contact number",
+  "unableToCall": "Unable to initiate call on this device",
+  "failedToStartCall": "Failed to start call: {error}",
+
+  "language": "Language",
+  "langEnglish": "English",
+  "langHindi": "हिंदी",
+  "langBengali": "বাংলা",
+  "langTamil": "தமிழ்",
+  "langTelugu": "తెలుగు",
+  "langMalayalam": "മലയാളം"
+}

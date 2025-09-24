@@ -8,6 +8,8 @@ import '../utils/permission_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'qr_checkin_screen.dart';
+import '../l10n/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 const _kTrackingPrefKey = 'tracking_enabled';
 
@@ -80,11 +82,11 @@ class _HomeScreenState extends State<HomeScreen> {
         // Offer a rationale with quick access to Settings
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'Enable "Allow all the time" for continuous safety tracking.',
+            content: Text(
+              AppLocalizations.of(context).snackEnableBackground,
             ),
             action: SnackBarAction(
-              label: 'Settings',
+              label: AppLocalizations.of(context).settings,
               onPressed: () {
                 // ignore: discarded_futures
                 PermissionUtils.openSettingsForBackground();
@@ -132,9 +134,9 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Background location needed for alerts.'),
+              content: Text(AppLocalizations.of(context).snackBgNeeded),
               action: SnackBarAction(
-                label: 'Settings',
+                label: AppLocalizations.of(context).settings,
                 onPressed: () {
                   // ignore: discarded_futures
                   PermissionUtils.openSettingsForBackground();
@@ -174,7 +176,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _toggleTracking() async {
     if (!_hasForeground) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Grant location permission first.')),
+        SnackBar(
+          content:
+              Text(AppLocalizations.of(context).snackGrantLocationFirst),
+        ),
       );
       return;
     }
@@ -222,38 +227,42 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TripSentry'),
+  title: Text(AppLocalizations.of(context).appNameShort),
         actions: [
+          _buildLanguageSwitcher(context),
           PopupMenuButton<String>(
             onSelected: (value) => _handleMenuAction(context, value),
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'refresh',
                 child: Row(
                   children: [
                     Icon(Icons.refresh),
                     SizedBox(width: 8),
-                    Text('Refresh'),
+                    Text(AppLocalizations.of(context).menuRefresh),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'clear_data',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_forever, color: Colors.red),
+                    const Icon(Icons.delete_forever, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Clear Data', style: TextStyle(color: Colors.red)),
+                    Text(
+                      AppLocalizations.of(context).menuClearData,
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
                     Icon(Icons.logout),
                     SizedBox(width: 8),
-                    Text('Logout'),
+                    Text(AppLocalizations.of(context).menuLogout),
                   ],
                 ),
               ),
@@ -292,9 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: Colors.white,
                           ),
                           label: Text(
-                            _isTracking
-                                ? 'Tracking Active (tap to pause)'
-                                : 'Tracking Paused (tap to resume)',
+              _isTracking
+                ? AppLocalizations.of(context).trackingActive
+                : AppLocalizations.of(context).trackingPaused,
                             style: const TextStyle(color: Colors.white),
                           ),
                           backgroundColor: _isTracking
@@ -348,14 +357,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    needsBg
-                        ? 'Allow background location to enable continuous safety alerts.'
-                        : 'Allow location access to enable safety tracking and alerts.',
+          needsBg
+            ? AppLocalizations.of(context).permissionBannerNeedBg
+            : AppLocalizations.of(context).permissionBannerNeedFg,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Dismiss',
+                  tooltip: AppLocalizations.of(context).dismiss,
                   icon: const Icon(Icons.close),
                   onPressed: () => setState(() => _dismissedBanner = true),
                 ),
@@ -367,8 +376,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ElevatedButton.icon(
                   onPressed: _requestFromBanner,
                   icon: const Icon(Icons.security),
-                  label:
-                      Text(needsBg ? 'Enable Background' : 'Enable Location'),
+          label: Text(needsBg
+            ? AppLocalizations.of(context).permissionEnableBg
+            : AppLocalizations.of(context).permissionEnableFg),
                 ),
                 const SizedBox(width: 12),
                 TextButton(
@@ -376,7 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     // ignore: discarded_futures
                     PermissionUtils.openSettingsForBackground();
                   },
-                  child: const Text('Settings'),
+                  child: Text(AppLocalizations.of(context).settings),
                 ),
               ],
             )
@@ -414,7 +424,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Tourist ID',
+                  AppLocalizations.of(context).touristId,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -428,7 +438,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    isExpired ? 'EXPIRED' : 'ACTIVE',
+                    isExpired
+                        ? AppLocalizations.of(context).expired
+                        : AppLocalizations.of(context).active_caps,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -439,19 +451,19 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _buildInfoRow(
-                context, 'Token ID:', '#${blockchainProvider.tokenId}'),
+      _buildInfoRow(
+        context, AppLocalizations.of(context).tokenId, '#${blockchainProvider.tokenId}'),
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
-              'Valid Until:',
+              AppLocalizations.of(context).validUntil,
               _formatDate(record.validUntil),
             ),
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
-              'Status:',
-              record.isActive ? 'Active' : 'Inactive',
+              AppLocalizations.of(context).status,
+              record.isActive ? AppLocalizations.of(context).active : AppLocalizations.of(context).inactive,
             ),
             const SizedBox(height: 16),
             Row(
@@ -462,7 +474,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.of(context).pushNamed('/tourist-id-details');
                     },
                     icon: const Icon(Icons.visibility),
-                    label: const Text('View ID'),
+                    label: Text(AppLocalizations.of(context).viewId),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -472,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () =>
                           _deleteExpiredID(context, blockchainProvider),
                       icon: const Icon(Icons.delete),
-                      label: const Text('Delete'),
+                      label: Text(AppLocalizations.of(context).delete),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
@@ -503,7 +515,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Tourist ID',
+                  AppLocalizations.of(context).touristId,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -512,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'You don\'t have an active Tourist ID yet. Create one to enjoy a secure and verified travel experience.',
+              AppLocalizations.of(context).noTouristIdBody,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey.shade600,
                   ),
@@ -525,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.of(context).pushNamed('/tourist-id-registration');
                 },
                 icon: const Icon(Icons.add),
-                label: const Text('Create Tourist ID'),
+                label: Text(AppLocalizations.of(context).createTouristId),
               ),
             ),
           ],
@@ -543,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Quick Actions',
+              AppLocalizations.of(context).quickActions,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -555,15 +567,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildActionButton(
                     context,
                     Icons.qr_code_scanner,
-                    'QR Check-In',
+                    AppLocalizations.of(context).qrCheckIn,
                     () {
                       final record = blockchainProvider.touristRecord;
                       final cid = record?.metadataCID;
                       if (cid == null || cid.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('No metadata found for your Tourist ID.'),
+                          SnackBar(
+                            content: Text(AppLocalizations.of(context).snackNoMetadata),
                           ),
                         );
                         return;
@@ -581,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildActionButton(
                     context,
                     Icons.emergency,
-                    'Emergency',
+                    AppLocalizations.of(context).emergency,
                     () => Navigator.of(context).pushNamed('/emergency'),
                   ),
                 ),
@@ -594,7 +605,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildActionButton(
                     context,
                     Icons.location_on,
-                    'Check-In',
+                    AppLocalizations.of(context).checkIn,
                     () => _showComingSoon(context),
                   ),
                 ),
@@ -603,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildActionButton(
                     context,
                     Icons.my_location,
-                    'Geo Location',
+                    AppLocalizations.of(context).geoLocation,
                     () => Navigator.of(context).pushNamed('/geo-fencing'),
                   ),
                 ),
@@ -649,7 +660,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(Icons.error, color: Colors.red.shade600),
                 const SizedBox(width: 8),
                 Text(
-                  'Error',
+                  AppLocalizations.of(context).error,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.red.shade600,
                         fontWeight: FontWeight.bold,
@@ -665,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             TextButton(
               onPressed: blockchainProvider.clearError,
-              child: const Text('Dismiss'),
+              child: Text(AppLocalizations.of(context).dismiss),
             ),
           ],
         ),
@@ -730,14 +741,12 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Tourist Data'),
-        content: const Text(
-          'This will permanently delete your tourist data and all associated information. This action cannot be undone.',
-        ),
+  title: Text(AppLocalizations.of(context).menuClearDataConfirmTitle),
+  content: Text(AppLocalizations.of(context).menuClearDataConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -748,7 +757,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -760,14 +769,12 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Expired Tourist ID'),
-        content: const Text(
-          'This will permanently delete your expired Tourist ID from the blockchain. This action cannot be undone.',
-        ),
+  title: Text(AppLocalizations.of(context).deleteExpiredTitle),
+  content: Text(AppLocalizations.of(context).deleteExpiredBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -776,18 +783,16 @@ class _HomeScreenState extends State<HomeScreen> {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      success
-                          ? 'Tourist ID deleted successfully'
-                          : 'Failed to delete Tourist ID',
-                    ),
+        content: Text(success
+      ? AppLocalizations.of(context).deletedSuccessfully
+      : AppLocalizations.of(context).deleteFailed),
                     backgroundColor: success ? Colors.green : Colors.red,
                   ),
                 );
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -796,9 +801,63 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showComingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('This feature is coming soon!'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).snackFeatureComingSoon),
         duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _buildLanguageSwitcher(BuildContext context) {
+  final l10n = AppLocalizations.of(context);
+    final current = Localizations.localeOf(context);
+    String code = current.languageCode;
+  if (!['en', 'hi', 'bn', 'ta', 'te', 'ml'].contains(code)) code = 'en';
+    return Padding(
+      padding: const EdgeInsets.only(right: 4.0),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: code,
+          icon: const Icon(Icons.language),
+          items: [
+            DropdownMenuItem(value: 'en', child: Text(l10n.langEnglish)),
+            DropdownMenuItem(value: 'hi', child: Text(l10n.langHindi)),
+            DropdownMenuItem(value: 'bn', child: Text(l10n.langBengali)),
+            DropdownMenuItem(value: 'ta', child: Text(l10n.langTamil)),
+            DropdownMenuItem(value: 'te', child: Text(l10n.langTelugu)),
+            DropdownMenuItem(value: 'ml', child: Text(l10n.langMalayalam)),
+          ],
+          onChanged: (val) {
+            if (val == null) return;
+            Locale? newLocale;
+            switch (val) {
+              case 'en':
+                newLocale = const Locale('en');
+                break;
+              case 'hi':
+                newLocale = const Locale('hi');
+                break;
+              case 'bn':
+                newLocale = const Locale('bn');
+                break;
+              case 'ta':
+                newLocale = const Locale('ta');
+                break;
+              case 'te':
+                newLocale = const Locale('te');
+                break;
+              case 'ml':
+                newLocale = const Locale('ml');
+                break;
+            }
+            if (newLocale != null) {
+              // update via provider set at top level
+              try {
+                context.read<LocaleProvider>().setLocale(newLocale);
+              } catch (_) {}
+            }
+          },
+        ),
       ),
     );
   }

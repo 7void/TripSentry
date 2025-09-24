@@ -1,0 +1,67 @@
+{
+  "@@locale": "te",
+  "appTitle": "పర్యాటక భద్రత యాప్",
+  "appNameShort": "ట్రిప్‌సెంట్రీ",
+  "menuRefresh": "రిఫ్రెష్",
+  "menuClearData": "డేటా క్లియర్ చేయి",
+  "menuLogout": "లాగ్ అవుట్",
+  "menuClearDataConfirmTitle": "పర్యాటక డేటాను క్లియర్ చేయి",
+  "menuClearDataConfirmBody": "ఇది మీ పర్యాటక డేటాను మరియు సంబంధించిన అన్ని సమాచారాన్ని శాశ్వతంగా తొలగిస్తుంది. ఈ చర్యను తిరస్కరించలేరు.",
+  "cancel": "రద్దు",
+  "delete": "తొలగించు",
+
+  "permissionBannerNeedBg": "నిరంతర భద్రతా అలర్ట్స్ కోసం బ్యాక్‌గ్రౌండ్ లోకేషన్ అనుమతించండి.",
+  "permissionBannerNeedFg": "భద్రతా ట్రాకింగ్ మరియు అలర్ట్స్ కోసం లోకేషన్ యాక్సెస్‌ను అనుమతించండి.",
+  "permissionEnableBg": "బ్యాక్‌గ్రౌండ్ ఆన్ చేయి",
+  "permissionEnableFg": "లోకేషన్ ఆన్ చేయి",
+  "settings": "సెట్టింగ్స్",
+
+  "snackGrantLocationFirst": "ముందుగా లోకేషన్ అనుమతిని ఇవ్వండి.",
+  "snackEnableBackground": "నిరంతర భద్రతా ట్రాకింగ్ కోసం 'ఎల్లప్పుడూ అనుమతించు' ను ప్రారంభించండి.",
+  "snackBgNeeded": "అలర్ట్స్ కోసం బ్యాక్‌గ్రౌండ్ లోకేషన్ అవసరం.",
+  "snackFeatureComingSoon": "ఈ ఫీచర్ త్వరలో వస్తుంది!",
+  "snackNoMetadata": "మీ Tourist ID కు ఎటువంటి మెటాడేటా కనుగొనబడలేదు.",
+  "dismiss": "డిస్మిస్",
+  "error": "లోపం",
+
+  "trackingActive": "ట్రాకింగ్ యాక్టివ్ (పాజ్ చేయడానికి ట్యాప్ చేయండి)",
+  "trackingPaused": "ట్రాకింగ్ నిలిపివేయబడింది (మళ్లీ ప్రారంభించడానికి ట్యాప్ చేయండి)",
+
+  "touristId": "టూరిస్ట్ ఐడి",
+  "tokenId": "టోకెన్ ఐడి:",
+  "validUntil": "చెల్లుబాటు వరకు:",
+  "status": "స్థితి:",
+  "active": "సక్రియం",
+  "inactive": "నిష్క్రియం",
+  "expired": "గడువు ముగిసింది",
+  "active_caps": "సక్రియం",
+  "viewId": "ఐడి చూడి",
+
+  "noTouristIdBody": "మీకు ఇంకా యాక్టివ్ Tourist ID లేదు. భద్రతాయుతమైన మరియు ధృవీకరించిన ప్రయాణ అనుభవం కోసం ఒకదాన్ని సృష్టించండి.",
+  "createTouristId": "టూరిస్ట్ ఐడి సృష్టించండి",
+
+  "quickActions": "త్వరిత చర్యలు",
+  "qrCheckIn": "QR చెక్-ఇన్",
+  "emergency": "అత్యవసరం",
+  "checkIn": "చెక్-ఇన్",
+  "geoLocation": "భౌగోళిక స్థానం",
+
+  "deleteExpiredTitle": "గడువు ముగిసిన టూరిస్ట్ ఐడి తొలగించు",
+  "deleteExpiredBody": "ఇది మీ గడువు ముగిసిన టూరిస్ట్ ఐడిని బ్లాక్‌చెయిన్ నుండి శాశ్వతంగా తొలగిస్తుంది. దీన్ని తిరిగి పొందలేరు.",
+  "deletedSuccessfully": "టూరిస్ట్ ఐడి విజయవంతంగా తొలగించబడింది",
+  "deleteFailed": "టూరిస్ట్ ఐడి తొలగించడం విఫలమైంది",
+
+  "listening": "వింటోంది…",
+  "noEmergencyNumber": "అత్యవసర సంప్రదింపు నంబర్ కనబడలేదు",
+  "invalidEmergencyNumber": "చెల్లని అత్యవసర సంప్రదింపు నంబర్",
+  "unableToCall": "ఈ పరికరంలో కాల్ ప్రారంభించలేకపోయాము",
+  "failedToStartCall": "కాల్ ప్రారంభించడంలో విఫలమైంది: {error}",
+
+  "language": "భాష",
+  "langEnglish": "English",
+  "langHindi": "हिंदी",
+  "langBengali": "বাংলা",
+  "langTamil": "தமிழ்",
+  "langTelugu": "తెలుగు",
+  "langMalayalam": "മലയാളം"
+}

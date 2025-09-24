@@ -24,21 +24,21 @@ const List<HazardZone> hazardZones = [
   // Mild (Yellow)
   HazardZone(
     id: 'hz_mild_1',
-    center: LatLng(12.843592151449828, 80.15248982338552),
-    radiusMeters: 50,
+    center: LatLng(12.8442, 80.1541),
+    radiusMeters: 40,
     severity: HazardSeverity.mild,
   ),
   // Moderate (Orange)
   HazardZone(
     id: 'hz_moderate_1',
-    center: LatLng(12.842498245996257, 80.15327882298878),
+    center: LatLng(12.8432, 80.154),
     radiusMeters: 50,
     severity: HazardSeverity.moderate,
   ),
   // Severe (Red)
   HazardZone(
     id: 'hz_severe_1',
-    center: LatLng(12.844422732442604, 80.15258905201247),
+    center: LatLng(12.843, 80.1525),
     radiusMeters: 100,
     severity: HazardSeverity.severe,
   ),

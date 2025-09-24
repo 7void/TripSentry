@@ -1,0 +1,67 @@
+{
+  "@@locale": "bn",
+  "appTitle": "পর্যটক সুরক্ষা অ্যাপ",
+  "appNameShort": "ট্রিপসেন্ট্রি",
+  "menuRefresh": "রিফ্রেশ",
+  "menuClearData": "ডেটা মুছুন",
+  "menuLogout": "লগ আউট",
+  "menuClearDataConfirmTitle": "পর্যটক ডেটা মুছুন",
+  "menuClearDataConfirmBody": "এটি আপনার পর্যটক ডেটা এবং সংশ্লিষ্ট সব তথ্য স্থায়ীভাবে মুছে দেবে। এই কাজটি ফেরত নেওয়া যাবে না।",
+  "cancel": "বাতিল",
+  "delete": "মুছুন",
+
+  "permissionBannerNeedBg": "ধারাবাহিক নিরাপত্তা সতর্কতার জন্য ব্যাকগ্রাউন্ড লোকেশন অনুমতি দিন।",
+  "permissionBannerNeedFg": "সুরক্ষা ট্র্যাকিং এবং সতর্কতা সক্ষম করতে লোকেশন অ্যাক্সেস অনুমতি দিন।",
+  "permissionEnableBg": "ব্যাকগ্রাউন্ড চালু করুন",
+  "permissionEnableFg": "লোকেশন চালু করুন",
+  "settings": "সেটিংস",
+
+  "snackGrantLocationFirst": "প্রথমে লোকেশন অনুমতি দিন।",
+  "snackEnableBackground": "ধারাবাহিক সুরক্ষা ট্র্যাকিংয়ের জন্য 'সবসময় অনুমতি দিন' চালু করুন।",
+  "snackBgNeeded": "সতর্কতার জন্য ব্যাকগ্রাউন্ড লোকেশন প্রয়োজন।",
+  "snackFeatureComingSoon": "ফিচারটি শীঘ্রই আসছে!",
+  "snackNoMetadata": "আপনার Tourist ID-এর জন্য কোনো মেটাডেটা পাওয়া যায়নি।",
+  "dismiss": "বন্ধ করুন",
+  "error": "ত্রুটি",
+
+  "trackingActive": "ট্র্যাকিং চলছে (স্থগিত করতে ট্যাপ করুন)",
+  "trackingPaused": "ট্র্যাকিং বন্ধ (আবার শুরু করতে ট্যাপ করুন)",
+
+  "touristId": "ট্যুরিস্ট আইডি",
+  "tokenId": "টোকেন আইডি:",
+  "validUntil": "যতদিন বৈধ:",
+  "status": "অবস্থা:",
+  "active": "সক্রিয়",
+  "inactive": "নিষ্ক্রিয়",
+  "expired": "মেয়াদোত্তীর্ণ",
+  "active_caps": "সক্রিয়",
+  "viewId": "আইডি দেখুন",
+
+  "noTouristIdBody": "আপনার কোনো সক্রিয় Tourist ID নেই। নিরাপদ এবং যাচাইকৃত ভ্রমণের অভিজ্ঞতার জন্য একটি তৈরি করুন।",
+  "createTouristId": "ট্যুরিস্ট আইডি তৈরি করুন",
+
+  "quickActions": "দ্রুত কার্যাবলী",
+  "qrCheckIn": "কিউআর চেক-ইন",
+  "emergency": "জরুরি",
+  "checkIn": "চেক-ইন",
+  "geoLocation": "জিও লোকেশন",
+
+  "deleteExpiredTitle": "মেয়াদোত্তীর্ণ ট্যুরিস্ট আইডি মুছুন",
+  "deleteExpiredBody": "এটি আপনার মেয়াদোত্তীর্ণ ট্যুরিস্ট আইডি ব্লকচেইন থেকে স্থায়ীভাবে মুছে দেবে। এটি ফেরত নেওয়া যাবে না।",
+  "deletedSuccessfully": "ট্যুরিস্ট আইডি সফলভাবে মুছে ফেলা হয়েছে",
+  "deleteFailed": "ট্যুরিস্ট আইডি মুছতে ব্যর্থ",
+
+  "listening": "শুনছে…",
+  "noEmergencyNumber": "কোনো জরুরি যোগাযোগ নম্বর পাওয়া যায়নি",
+  "invalidEmergencyNumber": "অবৈধ জরুরি যোগাযোগ নম্বর",
+  "unableToCall": "এই ডিভাইসে কল শুরু করা যাচ্ছে না",
+  "failedToStartCall": "কল শুরু করতে ব্যর্থ: {error}",
+
+  "language": "ভাষা",
+  "langEnglish": "English",
+  "langHindi": "हिंदी",
+  "langBengali": "বাংলা",
+  "langTamil": "தமிழ்",
+  "langTelugu": "తెలుగు",
+  "langMalayalam": "മലയാളം"
+}

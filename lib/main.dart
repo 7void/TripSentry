@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'providers/blockchain_provider.dart';
+import 'providers/locale_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -24,6 +25,7 @@ import 'services/location_service.dart';
 import 'services/voice_assistant_service.dart';
 import 'services/chat_session_service.dart';
 import 'services/geofence_background_service.dart';
+import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -340,10 +342,17 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => BlockchainProvider())],
-      child: MaterialApp(
+      providers: [
+        ChangeNotifierProvider(create: (_) => BlockchainProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
+      ],
+      child: Consumer<LocaleProvider>(
+        builder: (context, lp, _) => MaterialApp(
         title: 'Tourist Safety App',
         navigatorKey: _navigatorKey,
+        locale: lp.locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.blue, brightness: Brightness.light),
@@ -374,7 +383,7 @@ class _MyAppState extends State<MyApp> {
           '/emergency': (context) => const EmergencyCountdownScreen(),
         },
         debugShowCheckedModeBanner: false,
-      ),
+      )),
     );
   }
 }

@@ -1,0 +1,67 @@
+{
+  "@@locale": "ta",
+  "appTitle": "சுற்றுலா பாதுகாப்பு செயலி",
+  "appNameShort": "ட்ரிப் சென்ட்ரி",
+  "menuRefresh": "புதுப்பிக்க",
+  "menuClearData": "தரவு அழிக்க",
+  "menuLogout": "வெளியேறு",
+  "menuClearDataConfirmTitle": "சுற்றுலா தரவை அழிக்கவும்",
+  "menuClearDataConfirmBody": "இது உங்கள் சுற்றுலா தரவையும் தொடர்புடைய அனைத்து தகவல்களையும் நிரந்தரமாக அழித்துவிடும். இந்த செயலை வாபஸ் பெற முடியாது.",
+  "cancel": "ரத்து",
+  "delete": "அழிக்க",
+
+  "permissionBannerNeedBg": "தொடர்ச்சியான பாதுகாப்பு எச்சரிக்கைகளுக்கு பின்னணி இடத்தை அனுமதிக்கவும்.",
+  "permissionBannerNeedFg": "பாதுகாப்பு கண்காணிப்பு மற்றும் எச்சரிக்கைகளை இயக்க இடம் அணுகலை அனுமதிக்கவும்.",
+  "permissionEnableBg": "பின்னணி இயக்கவும்",
+  "permissionEnableFg": "இடத்தை இயக்கவும்",
+  "settings": "அமைப்புகள்",
+
+  "snackGrantLocationFirst": "முதலில் இடம் அனுமதியை வழங்குங்கள்.",
+  "snackEnableBackground": "தொடர்ச்சியான பாதுகாப்பு கண்காணிப்புக்காக 'எப்போதும் அனுமதி' ஐ இயக்கவும்.",
+  "snackBgNeeded": "எச்சரிக்கைகளுக்கு பின்னணி இடம் தேவை.",
+  "snackFeatureComingSoon": "இந்த அம்சம் விரைவில் வருகிறது!",
+  "snackNoMetadata": "உங்கள் Tourist ID க்கு எந்த மெட்டாடேட்டாவும் கிடைக்கவில்லை.",
+  "dismiss": "மூடு",
+  "error": "பிழை",
+
+  "trackingActive": "கண்காணிப்பு செயலில் (இடைநிறுத்த தட்டவும்)",
+  "trackingPaused": "கண்காணிப்பு நிறுத்தப்பட்டுள்ளது (மீண்டும் தொடங்க தட்டவும்)",
+
+  "touristId": "சுற்றுலா ஐடி",
+  "tokenId": "டோக்கன் ஐடி:",
+  "validUntil": "செல்லுபடியாகும் நாள்:",
+  "status": "நிலை:",
+  "active": "செயலில்",
+  "inactive": "செயலிழந்தது",
+  "expired": "காலாவதியானது",
+  "active_caps": "செயலில்",
+  "viewId": "ஐடி பார்க்க",
+
+  "noTouristIdBody": "உங்களுக்கு இன்னும் செயல்பாட்டில் உள்ள Tourist ID இல்லை. பாதுகாப்பான மற்றும் சரிபார்க்கப்பட்ட பயண அனுபவத்திற்காக ஒன்றை உருவாக்குங்கள்.",
+  "createTouristId": "சுற்றுலா ஐடி உருவாக்கவும்",
+
+  "quickActions": "விரைவு செயல்கள்",
+  "qrCheckIn": "QR செக்-இன்",
+  "emergency": "அவசரம்",
+  "checkIn": "செக்-இன்",
+  "geoLocation": "புவிஇடம்",
+
+  "deleteExpiredTitle": "காலாவதியான சுற்றுலா ஐடி அழிக்க",
+  "deleteExpiredBody": "இது உங்கள் காலாவதியான சுற்றுலா ஐடியை ப்ளாக்செயினிலிருந்து நிரந்தரமாக அகற்றும். இதை மீட்டெடுக்க முடியாது.",
+  "deletedSuccessfully": "சுற்றுலா ஐடி வெற்றிகரமாக அகற்றப்பட்டது",
+  "deleteFailed": "சுற்றுலா ஐடி அகற்றம் தோல்வியடைந்தது",
+
+  "listening": "கேட்கிறது…",
+  "noEmergencyNumber": "அவசர தொடர்பு எண் எதுவும் கிடைக்கவில்லை",
+  "invalidEmergencyNumber": "தவறான அவசர தொடர்பு எண்",
+  "unableToCall": "இந்த சாதனத்தில் அழைப்பை தொடங்க முடியவில்லை",
+  "failedToStartCall": "அழைப்பைத் தொடங்க இயலவில்லை: {error}",
+
+  "language": "மொழி",
+  "langEnglish": "English",
+  "langHindi": "हिंदी",
+  "langBengali": "বাংলা",
+  "langTamil": "தமிழ்",
+  "langTelugu": "తెలుగు",
+  "langMalayalam": "മലയാളം"
+}
