@@ -12,6 +12,19 @@ class GroupListScreen extends StatelessWidget {
         title: const Text('My Groups'),
         actions: [
           IconButton(
+            tooltip: 'Scan Group QR',
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () async {
+              final res = await Navigator.of(context).pushNamed('/groupInviteScan');
+              if (!context.mounted) return;
+              if (res is Map && res['joined'] == true) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Joined group via QR')),
+                );
+              }
+            },
+          ),
+          IconButton(
             tooltip: 'Join by ID',
             icon: const Icon(Icons.login),
             onPressed: () async {
@@ -67,16 +80,35 @@ class GroupListScreen extends StatelessWidget {
           if (groups.isEmpty) {
             return const Center(child: Text('No groups yet'));
           }
-          return ListView.builder(
+              return ListView.builder(
             itemCount: groups.length,
             itemBuilder: (context, i) {
               final g = groups[i];
-              return ListTile(
+                  return ListTile(
                 title: Text(g['name'] ?? 'Group'),
                 subtitle: Text(g['id'] ?? ''),
-                onTap: () {
-                  Navigator.of(context).pushNamed('/groupChat', arguments: g['id']);
-                },
+                    onTap: () {
+                      Navigator.of(context).pushNamed('/groupChat', arguments: g['id']);
+                    },
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'share_qr') {
+                          Navigator.of(context).pushNamed(
+                            '/groupInviteQr',
+                            arguments: {
+                              'groupId': g['id'] ?? '',
+                              'name': g['name'] ?? 'Group',
+                            },
+                          );
+                        }
+                      },
+                      itemBuilder: (ctx) => const [
+                        PopupMenuItem(
+                          value: 'share_qr',
+                          child: Text('Share QR'),
+                        ),
+                      ],
+                    ),
               );
             },
           );

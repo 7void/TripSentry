@@ -18,7 +18,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final gs = GroupService.instance;
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
-      appBar: AppBar(title: const Text('Group Chat')),
+      appBar: AppBar(
+        title: const Text('Group Chat'),
+        actions: [
+          IconButton(
+            tooltip: 'Share Group QR',
+            icon: const Icon(Icons.qr_code),
+            onPressed: () async {
+              // try to fetch group name minimal from users-index cache if available via route args is minimal; fallback empty
+              final name = '';
+              if (!mounted) return;
+              Navigator.of(context).pushNamed('/groupInviteQr', arguments: {
+                'groupId': widget.groupId,
+                'name': name,
+              });
+            },
+          ),
+          IconButton(
+            tooltip: 'Scan Group QR',
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/groupInviteScan');
+            },
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(

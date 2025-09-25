@@ -24,6 +24,8 @@ import 'screens/chat_screen.dart'; // ✅ chatbot screen import
 import 'screens/emergency_countdown_screen.dart';
 import 'screens/group_list_screen.dart';
 import 'screens/group_chat_screen.dart';
+import 'screens/group_invite_qr_screen.dart';
+import 'screens/group_invite_scanner_screen.dart';
 import 'services/location_service.dart';
 import 'services/voice_assistant_service.dart';
 import 'services/chat_session_service.dart';
@@ -408,6 +410,17 @@ class _MyAppState extends State<MyApp> {
             final id = ModalRoute.of(context)?.settings.arguments as String?;
             return GroupChatScreen(groupId: id ?? '');
           },
+          '/groupInviteQr': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments;
+            String gid = '';
+            String name = '';
+            if (args is Map) {
+              gid = (args['groupId'] ?? '').toString();
+              name = (args['name'] ?? '').toString();
+            }
+            return GroupInviteQrScreen(groupId: gid, groupName: name);
+          },
+          '/groupInviteScan': (context) => const GroupInviteScannerScreen(),
         },
         debugShowCheckedModeBanner: false,
       )),

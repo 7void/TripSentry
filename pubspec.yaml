@@ -41,6 +41,9 @@ dependencies:
   # QR Code
   qr_flutter: ^4.1.0
 
+  # QR/Barcode scanning
+  mobile_scanner: ^3.5.7
+
   # Permission handling
   permission_handler: ^12.0.1
 
