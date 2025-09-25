@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "514911857172",
+    "firebase_url": "https://touristapp-2941f-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "touristapp-2941f",
     "storage_bucket": "touristapp-2941f.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.example.touristapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "514911857172-spddim0igl6jegt8qt8ajmqrqfkir6ui.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.touristapp",
+            "certificate_hash": "b446279eb19bca24b706b1863ad78458b57e9119"
+          }
+        },
+        {
+          "client_id": "514911857172-gfju2pdb068hijosirrkmpvlod652its.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAiDTmIZLbskVu2g_BG1hy2jsWt97UXFNg"
@@ -20,7 +34,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "514911857172-gfju2pdb068hijosirrkmpvlod652its.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "514911857172-f28cbtlpg6e4go52ducgod8o8edfhci4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.touristapp"
+              }
+            }
+          ]
         }
       }
     }

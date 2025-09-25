@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/location_service_helper.dart';
 import '../services/user_service.dart';
+import '../services/auth_service.dart';
 import '../utils/permission_utils.dart'; // ✅ added import
+import '../services/health_connect_service.dart';
+import '../services/health_sync_service.dart';
 import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
@@ -24,6 +27,19 @@ class _LoginScreenState extends State<LoginScreen> {
       if (granted) {
         await LocationServiceHelper.startServiceIfAllowed();
       }
+      // Health init is best-effort and should not block UX
+      try {
+        await HealthConnectService.instance.configure();
+        await HealthConnectService.instance.requestPlatformPermissions();
+        // Request health permissions including background read when supported
+        // ignore: unused_result
+        await HealthConnectService.instance.requestHealthPermissions(
+          withBackground: true,
+        );
+        // Fire-and-forget sync of latest heart rate to Firestore
+        // ignore: discarded_futures
+        HealthConnectService.instance.syncLatestHeartRate();
+      } catch (_) {}
     } catch (_) {
       // Swallow errors to avoid blocking login UX
     }
@@ -49,6 +65,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // Kick off tracking initialization in background
       // ignore: discarded_futures
       _initTracking();
+  // Start 1-minute health sync loop
+  // ignore: discarded_futures
+  HealthSyncService.instance.start(interval: const Duration(minutes: 1));
     } on FirebaseAuthException catch (e) {
       setState(() {
         _error = e.message;
@@ -56,6 +75,46 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       setState(() {
         _error = 'Sign-in failed: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final user = await AuthService.signInWithGoogle();
+      if (user == null) {
+        // User cancelled the sign-in flow
+        return;
+      }
+      // Ensure Firestore has blockchainId field for this user (non-blocking for UX)
+      // ignore: discarded_futures
+      UserService.ensureBlockchainIdOnLogin();
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/home');
+      // Kick off tracking initialization in background
+      // ignore: discarded_futures
+      _initTracking();
+  // Start 1-minute health sync loop
+  // ignore: discarded_futures
+  HealthSyncService.instance.start(interval: const Duration(minutes: 1));
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _error = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Google sign-in failed: $e';
       });
     } finally {
       if (mounted) {
@@ -100,6 +159,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text('Sign In'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('or'),
+                ),
+                Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _loading ? null : _signInWithGoogle,
+                icon: const Icon(Icons.account_circle),
+                label: const Text('Continue with Google'),
               ),
             ),
             const SizedBox(height: 12),

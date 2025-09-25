@@ -27,6 +27,7 @@ import 'services/chat_session_service.dart';
 import 'services/geofence_background_service.dart';
 import 'l10n/app_localizations.dart';
 import 'services/risk_score_service.dart';
+import 'screens/health_debug_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -384,6 +385,8 @@ class _MyAppState extends State<MyApp> {
           '/test-map': (context) => const TestMapScreen(),
           '/chat': (context) => const ChatScreen(),
           '/emergency': (context) => const EmergencyCountdownScreen(),
+          // Developer utility screen for testing Health Connect/HealthKit
+          '/health-debug': (context) => const HealthDebugScreen(),
         },
         debugShowCheckedModeBanner: false,
       )),

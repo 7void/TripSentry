@@ -12,6 +12,20 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Health Connect & Fitness related permissions -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
+    <!-- Steps -->
+    <uses-permission android:name="android.permission.health.READ_STEPS"/>
+    <uses-permission android:name="android.permission.health.WRITE_STEPS"/>
+    <!-- Heart rate -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
+    <uses-permission android:name="android.permission.health.WRITE_HEART_RATE"/>
+    <!-- Blood glucose -->
+    <uses-permission android:name="android.permission.health.READ_BLOOD_GLUCOSE"/>
+    <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE"/>
+    <!-- Background & history access -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"/>
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY"/>
     <!-- Needed for direct phone calls (ACTION_CALL) -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
@@ -56,7 +70,23 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Intention to show Permissions screen for Health Connect API -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+
+        <!-- Alias activity for linking from Health Connect permission screen to app's policy/activity -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
@@ -71,6 +101,11 @@
 
     <!-- Queries (needed for text processing) -->
     <queries>
+        <!-- Health Connect app presence check -->
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

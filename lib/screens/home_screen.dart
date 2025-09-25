@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'qr_checkin_screen.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/health_sync_service.dart';
 
 const _kTrackingPrefKey = 'tracking_enabled';
 
@@ -727,6 +728,11 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           await FirebaseAuth.instance.signOut();
           await LocationServiceHelper.stopService();
+          // Stop 1-minute health sync loop on logout
+          try {
+            // ignore: discarded_futures
+            HealthSyncService.instance.stop();
+          } catch (_) {}
         } finally {
           if (context.mounted) {
             Navigator.of(context).pushReplacementNamed('/login');
