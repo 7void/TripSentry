@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'group_service.dart';
 
 class AlertService {
   AlertService._();
@@ -158,6 +159,21 @@ class AlertService {
       _lastZoneId = zoneId;
       _lastGeofenceAlertTime = now;
       _activeZoneAlertDocIds[zoneId] = docRef.id; // cache for fast resolution
+      // Fan-out to user groups
+      try {
+        await GroupService.instance.fanoutAlertToGroups(
+          type: 'geofencing',
+          location: {
+            'latitude': latitude,
+            'longitude': longitude,
+          },
+          extra: {
+            'zoneId': zoneId,
+          },
+        );
+      } catch (e) {
+        debugPrint('[AlertService] fanout to groups failed: $e');
+      }
     } catch (e, st) {
       debugPrint('[AlertService] ERROR creating geofence alert: $e');
       debugPrint(st.toString());
@@ -208,6 +224,18 @@ class AlertService {
       }
       final docRef = await activeItems.add(payload);
       debugPrint('[AlertService] Emergency alert created with id=${docRef.id}');
+      // Fan-out to groups
+      try {
+        await GroupService.instance.fanoutAlertToGroups(
+          type: 'emergency',
+          location: payload['location'] as Map<String, dynamic>?,
+          extra: payload['extra'] as Map<String, dynamic>?,
+        );
+        // Also drop a system message for visibility in chat
+        await GroupService.instance.broadcastSystemMessage('🚨 SOS triggered');
+      } catch (e) {
+        debugPrint('[AlertService] fanout emergency to groups failed: $e');
+      }
     } catch (e, st) {
       debugPrint('[AlertService] ERROR creating emergency alert: $e');
       debugPrint(st.toString());

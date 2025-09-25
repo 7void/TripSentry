@@ -1,6 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Group membership helper
+    function isGroupMember(groupId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+    }
 
     // Utility helpers
     function isSignedIn() { return request.auth != null; }
@@ -37,6 +41,62 @@ service cloud.firestore {
         // Owners can delete only their active alerts
         allow delete: if isOwner(uid) && state == 'active';
       }
+    }
+
+    // 3) Groups feature
+    match /groups/{groupId} {
+      // Anyone signed-in can read group metadata; writes are constrained below
+      allow read: if isSignedIn();
+
+      // Create group: only signed-in users; ownerUid must match caller
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+
+      // Update: only owner can update top-level group metadata
+      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+
+      // Delete: only owner
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+
+      // Members subcollection
+      match /members/{memberUid} {
+        // Read members if you are a member
+        allow read: if isGroupMember(groupId);
+
+        // Join: allow creating your own member doc
+        allow create: if isSignedIn() && memberUid == request.auth.uid;
+
+        // Update: allow members to update their own member doc (e.g., display name)
+        allow update: if isSignedIn() && memberUid == request.auth.uid;
+
+        // Leave: allow deleting your own member doc; owner can remove anyone
+        allow delete: if (isSignedIn() && memberUid == request.auth.uid) ||
+                       (isSignedIn() && exists(/databases/$(database)/documents/groups/$(groupId)) &&
+                        get(/databases/$(database)/documents/groups/$(groupId)).data.ownerUid == request.auth.uid);
+      }
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isGroupMember(groupId);
+        // Sender must be the caller
+        allow create: if isGroupMember(groupId) && request.resource.data.senderUid == request.auth.uid;
+        // No updates/deletes to messages for simplicity
+        allow update, delete: if false;
+      }
+
+      // Alerts subcollection (group-wide alerts mirrored from member alerts)
+      match /alerts/{alertId} {
+        allow read: if isGroupMember(groupId);
+        // Any member can create an alert for the group
+        allow create: if isGroupMember(groupId) && request.resource.data.triggeredBy == request.auth.uid;
+        // Allow updates to resolve alerts by any member or owner
+        allow update: if isGroupMember(groupId);
+        allow delete: if false;
+      }
+    }
+
+    // 4) Users' group index for efficient listing: users/{uid}/groups/{groupId}
+    match /users/{uid}/groups/{groupId} {
+      allow read, create, update, delete: if isOwner(uid);
     }
   }
 }

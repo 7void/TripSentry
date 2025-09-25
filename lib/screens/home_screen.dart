@@ -604,6 +604,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _buildActionButton(
                     context,
+                    Icons.group,
+                    'Groups',
+                    () => Navigator.of(context).pushNamed('/groups'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    context,
                     Icons.location_on,
                     AppLocalizations.of(context).checkIn,
                     () => _showComingSoon(context),

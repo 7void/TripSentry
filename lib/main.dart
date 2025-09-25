@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,10 +22,13 @@ import 'screens/geo_fencing_screen.dart';
 import 'screens/test_map_screen.dart';
 import 'screens/chat_screen.dart'; // ✅ chatbot screen import
 import 'screens/emergency_countdown_screen.dart';
+import 'screens/group_list_screen.dart';
+import 'screens/group_chat_screen.dart';
 import 'services/location_service.dart';
 import 'services/voice_assistant_service.dart';
 import 'services/chat_session_service.dart';
 import 'services/geofence_background_service.dart';
+import 'services/group_alert_listener.dart';
 import 'l10n/app_localizations.dart';
 import 'services/risk_score_service.dart';
 
@@ -54,6 +58,7 @@ class _MyAppState extends State<MyApp> {
   final VoiceAssistantService _voiceAssistantService = VoiceAssistantService();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   OverlayEntry? _listeningOverlay;
+  StreamSubscription<User?>? _authSub;
 
   void _showListeningOverlay() {
     // If already visible, just return
@@ -276,6 +281,16 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    // Start/stop group alert listener when auth state changes
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
+      try {
+        if (user != null) {
+          await GroupAlertListener.instance.start();
+        } else {
+          await GroupAlertListener.instance.stop();
+        }
+      } catch (_) {}
+    });
     _voiceAssistantService.events.listen((e) {
       // ignore: avoid_print
       print(
@@ -339,6 +354,7 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     _hideListeningOverlay();
     _voiceAssistantService.dispose();
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -384,6 +400,11 @@ class _MyAppState extends State<MyApp> {
           '/test-map': (context) => const TestMapScreen(),
           '/chat': (context) => const ChatScreen(),
           '/emergency': (context) => const EmergencyCountdownScreen(),
+          '/groups': (context) => const GroupListScreen(),
+          '/groupChat': (context) {
+            final id = ModalRoute.of(context)?.settings.arguments as String?;
+            return GroupChatScreen(groupId: id ?? '');
+          },
         },
         debugShowCheckedModeBanner: false,
       )),

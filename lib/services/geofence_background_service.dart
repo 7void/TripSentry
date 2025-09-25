@@ -35,6 +35,10 @@ class GeofenceBackgroundService {
   StreamSubscription<User?>? _authSub;
   bool _started = false;
   StreamSubscription<RiskScoreUpdate>? _riskSub;
+  // Throttle Firestore writes: update at most once per minute
+  DateTime? _lastScoreSyncAt;
+  String? _lastSyncedCategory;
+  static const Duration _minScoreSyncInterval = Duration(minutes: 1);
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -72,15 +76,30 @@ class GeofenceBackgroundService {
           final uid = _auth.currentUser?.uid;
           if (uid == null) return;
           try {
-            await FirebaseFirestore.instance.collection('users').doc(uid).set({
-              'safetyScore':
-                  double.parse(update.safetyScore.toStringAsFixed(2)),
-              'riskExposure':
-                  double.parse(update.riskExposure.toStringAsFixed(4)),
-              'safetyCategory': update.category,
-              'riskFactor': RiskScoreService.instance.factor,
-              'safetyScoreUpdatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
+            final now = DateTime.now();
+            final due = _lastScoreSyncAt == null ||
+                now.difference(_lastScoreSyncAt!).compareTo(_minScoreSyncInterval) >= 0;
+            final categoryChanged =
+                _lastSyncedCategory == null || _lastSyncedCategory != update.category;
+
+            if (due || categoryChanged) {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .set({
+                'safetyScore':
+                    double.parse(update.safetyScore.toStringAsFixed(2)),
+                'riskExposure':
+                    double.parse(update.riskExposure.toStringAsFixed(4)),
+                'safetyCategory': update.category,
+                'riskFactor': RiskScoreService.instance.factor,
+                'safetyScoreUpdatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+
+              // Update throttle state
+              _lastScoreSyncAt = now;
+              _lastSyncedCategory = update.category;
+            }
           } catch (e) {
             debugPrint('[GeofenceBG] Failed to sync Safety Score: $e');
           }
@@ -91,6 +110,8 @@ class GeofenceBackgroundService {
       } else {
         await _riskSub?.cancel();
         _riskSub = null;
+        _lastScoreSyncAt = null;
+        _lastSyncedCategory = null;
         await stop();
       }
     });
@@ -148,8 +169,8 @@ class GeofenceBackgroundService {
         if (status == gf.GeofenceStatus.ENTER) {
           if (isHazard) {
             final title = switch (sev) {
-              HazardSeverity.mild => '⚠️ Entered Mild Hazard',
-              HazardSeverity.moderate => '⚠️ Entered Moderate Hazard',
+              HazardSeverity.mild => '⚠ Entered Mild Hazard',
+              HazardSeverity.moderate => '⚠ Entered Moderate Hazard',
               HazardSeverity.severe => '🚨 Entered Severe Hazard',
             };
             await _notify(title, 'You entered ${geofence.id}');
@@ -165,7 +186,7 @@ class GeofenceBackgroundService {
               longitude: location.longitude,
             );
           } else {
-            await _notify('ℹ️ Entered Zone', 'You entered ${geofence.id}');
+            await _notify('ℹ Entered Zone', 'You entered ${geofence.id}');
           }
         } else if (status == gf.GeofenceStatus.EXIT) {
           if (isHazard) {
@@ -178,7 +199,7 @@ class GeofenceBackgroundService {
             AlertService.instance.resolveGeofencingAlert(geofence.id);
             await _notify('✅ Left Hazard Zone', 'You exited ${geofence.id}');
           } else {
-            await _notify('ℹ️ Left Zone', 'You left ${geofence.id}');
+            await _notify('ℹ Left Zone', 'You left ${geofence.id}');
           }
         }
       },
@@ -204,6 +225,9 @@ class GeofenceBackgroundService {
     }
     await _service.stop();
     _started = false;
+    // Reset throttle state when stopped
+    _lastScoreSyncAt = null;
+    _lastSyncedCategory = null;
   }
 
   Future<void> _syncCurrentRiskScoreIfAny() async {
@@ -220,6 +244,9 @@ class GeofenceBackgroundService {
         'riskFactor': (snap['factor'] as double? ?? 2.0),
         'safetyScoreUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      // Initialize throttle state to avoid immediate duplicate write from stream
+      _lastScoreSyncAt = DateTime.now();
+      _lastSyncedCategory = (snap['category'] as String? ?? 'Safe');
     } catch (e) {
       debugPrint('[GeofenceBG] Initial Safety Score sync failed: $e');
     }
@@ -264,7 +291,7 @@ class GeofenceBackgroundService {
               longitude: pos.longitude,
             );
           }
-          await _notify('⚠️ Inside Hazard Zone', 'You are inside ${hz.id}');
+          await _notify('⚠ Inside Hazard Zone', 'You are inside ${hz.id}');
           break; // only first matching zone
         }
       }
