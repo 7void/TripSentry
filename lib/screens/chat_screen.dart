@@ -1099,6 +1099,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text("Chatbot"),
@@ -1143,7 +1144,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       bubbleChild = SelectableText(
                         msg['text'] ?? '',
                         style: TextStyle(
-                          color: isUser ? Colors.white : Colors.black,
+                          color: isUser ? scheme.onPrimary : scheme.onSurface,
                         ),
                       );
                     }
@@ -1157,8 +1158,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: isUser
-                                ? Colors.blueAccent
-                                : Colors.grey.shade300,
+                                ? scheme.primary
+                                : scheme.surfaceVariant,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: bubbleChild,
@@ -1182,7 +1183,6 @@ class _ChatScreenState extends State<ChatScreen> {
                         controller: _controller,
                         decoration: const InputDecoration(
                           hintText: "Ask me anything...",
-                          border: OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -1297,7 +1297,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     IconButton(
                       icon: const Icon(Icons.send),
                       onPressed: _isLoading ? null : _sendMessage,
-                      color: _isLoading ? Colors.grey : null,
+                      color: _isLoading ? scheme.outline : scheme.primary,
                       tooltip: _isLoading ? 'Waiting for response...' : 'Send',
                     ),
                   ],
@@ -1369,6 +1369,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildPlacesBubble(Map<String, dynamic> msg) {
+    final scheme = Theme.of(context).colorScheme;
     final List places = msg['places'] ?? [];
     final intro = msg['text'] ?? 'Nearby places:';
     if (places.isEmpty) {
@@ -1378,8 +1379,8 @@ class _ChatScreenState extends State<ChatScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(intro,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, color: Colors.black)),
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: scheme.onSurface)),
         const SizedBox(height: 8),
         ...places.map((p) {
           final name = p['name'] ?? 'Unknown';
@@ -1389,7 +1390,7 @@ class _ChatScreenState extends State<ChatScreen> {
           return Container(
             margin: const EdgeInsets.only(bottom: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: scheme.surface,
               borderRadius: BorderRadius.circular(8),
             ),
             child: ListTile(
@@ -1397,14 +1398,14 @@ class _ChatScreenState extends State<ChatScreen> {
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               title: Text(name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, color: Colors.black)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: scheme.onSurface)),
               subtitle: Text(vicinity,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.black87)),
+                  style: TextStyle(color: scheme.onSurfaceVariant)),
               trailing: IconButton(
-                icon: const Icon(Icons.map, color: Colors.blueAccent),
+                icon: Icon(Icons.map, color: scheme.primary),
                 tooltip: 'Open in Google Maps',
                 onPressed: (lat == null || lng == null)
                     ? null
@@ -1434,6 +1435,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildRouteBubble(Map<String, dynamic>? routeMap) {
+    final scheme = Theme.of(context).colorScheme;
     if (routeMap == null) return const Text('No route data.');
     final origin = routeMap['origin'] ?? 'Origin';
     final dest = routeMap['destination'] ?? 'Destination';
@@ -1459,21 +1461,21 @@ class _ChatScreenState extends State<ChatScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Route: $origin → $dest',
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, color: Colors.black)),
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: scheme.onSurface)),
         const SizedBox(height: 4),
         Text('Distance: $distance  •  Duration: $duration',
-            style: const TextStyle(color: Colors.black87)),
+            style: TextStyle(color: scheme.onSurfaceVariant)),
         if (narrative != null) ...[
           const SizedBox(height: 8),
           Text(narrative,
-              style: const TextStyle(fontSize: 13, color: Colors.black)),
+              style: TextStyle(fontSize: 13, color: scheme.onSurface)),
         ],
         const SizedBox(height: 10),
         if (steps.isNotEmpty)
           Text('Turn-by-turn (${steps.length} steps):',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600, color: Colors.black)),
+              style: TextStyle(
+                  fontWeight: FontWeight.w600, color: scheme.onSurface)),
         ...showingSteps.asMap().entries.map((entry) {
           final idx = entry.key + 1;
           final s = entry.value;
@@ -1482,7 +1484,7 @@ class _ChatScreenState extends State<ChatScreen> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text('${expanded ? idx : idx}. $instr (${sd ?? ''})',
-                style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
           );
         }),
         if (!expanded && remaining > 0)
@@ -1495,7 +1497,7 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             },
             child: Text('Show more (+$remaining)',
-                style: const TextStyle(color: Colors.blueAccent)),
+                style: TextStyle(color: scheme.primary)),
           ),
         if (expanded && remaining > 0)
           TextButton(
@@ -1506,8 +1508,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 });
               }
             },
-            child: const Text('Show less',
-                style: TextStyle(color: Colors.blueAccent)),
+            child:
+                Text('Show less', style: TextStyle(color: scheme.primary)),
           ),
         const SizedBox(height: 8),
         Align(
@@ -1526,8 +1528,7 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.directions),
             label: const Text('Open in Google Maps'),
             style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
           ),
         )
       ],
