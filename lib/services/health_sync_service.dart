@@ -16,13 +16,13 @@ class HealthSyncService {
   static final HealthSyncService instance = HealthSyncService._();
 
   Timer? _timer;
-  Duration _interval = const Duration(minutes: 1);
+  Duration _interval = const Duration(seconds: 10);
   bool _inFlight = false;
 
   bool get isRunning => _timer != null;
   Duration get interval => _interval;
 
-  Future<void> start({Duration interval = const Duration(minutes: 1)}) async {
+  Future<void> start({Duration interval = const Duration(seconds: 10)}) async {
     _interval = interval;
     await _ensureConfigured();
     _timer?.cancel();

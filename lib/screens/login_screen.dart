@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _initTracking();
   // Start 1-minute health sync loop
   // ignore: discarded_futures
-  HealthSyncService.instance.start(interval: const Duration(minutes: 1));
+  HealthSyncService.instance.start(interval: const Duration(seconds: 10));
     } on FirebaseAuthException catch (e) {
       setState(() {
         _error = e.message;
@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _initTracking();
   // Start 1-minute health sync loop
   // ignore: discarded_futures
-  HealthSyncService.instance.start(interval: const Duration(minutes: 1));
+  HealthSyncService.instance.start(interval: const Duration(seconds: 10));
     } on FirebaseAuthException catch (e) {
       setState(() {
         _error = e.message;
