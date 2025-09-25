@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -36,6 +36,13 @@ class RiskScoreService {
   // Persisted totals
   double _riskExposure = 0.0;
 
+  // Periodic ticker (every 5 seconds) to update score
+  Timer? _ticker;
+  DateTime? _lastTick;
+  // Recovery rate when in safe zone (exposure decreases), units: weight per hour
+  // Default: recover at the same rate as the mild hazard weight per hour.
+  double _recoveryPerHour = 0.0;
+
   // In-memory active sessions keyed by zoneId
   final Map<String, _ActiveSession> _active = {};
 
@@ -46,11 +53,14 @@ class RiskScoreService {
   static const _kPrefExposure = 'risk_exposure_total';
   static const _kPrefActive = 'risk_active_sessions';
   static const _kPrefFactor = 'risk_factor';
+  static const _kPrefRecovery = 'risk_recovery_per_hour';
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _riskExposure = prefs.getDouble(_kPrefExposure) ?? 0.0;
     _factor = prefs.getDouble(_kPrefFactor) ?? 2.0;
+    _recoveryPerHour = prefs.getDouble(_kPrefRecovery) ??
+        _weightFor(HazardSeverity.mild).toDouble();
     // Restore active sessions (best effort)
     final jsonStr = prefs.getString(_kPrefActive);
     if (jsonStr != null && jsonStr.isNotEmpty) {
@@ -71,12 +81,21 @@ class RiskScoreService {
       } catch (_) {}
     }
     _emit();
+    _startTicker();
   }
 
   Future<void> setFactor(double factor) async {
     _factor = factor;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_kPrefFactor, factor);
+    _emit();
+  }
+
+  // Allow tuning the safe-zone recovery rate (weight units per hour)
+  Future<void> setRecoveryPerHour(double value) async {
+    _recoveryPerHour = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_kPrefRecovery, value);
     _emit();
   }
 
@@ -90,6 +109,43 @@ class RiskScoreService {
     await prefs.remove(_kPrefExposure);
     await prefs.remove(_kPrefActive);
     _emit();
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _lastTick = DateTime.now();
+    _ticker = Timer.periodic(const Duration(seconds: 5), (_) => _onTick());
+  }
+
+  Future<void> stopTicker() async {
+    _ticker?.cancel();
+    _ticker = null;
+    _lastTick = null;
+  }
+
+  void _onTick() async {
+    final now = DateTime.now();
+    final last = _lastTick ?? now;
+    final deltaSeconds = now.difference(last).inSeconds;
+    _lastTick = now;
+
+    if (_active.isNotEmpty) {
+      // While inside hazard, do not mutate persisted exposure; emit effective exposure including in-progress.
+      _emit();
+    } else {
+      // Safe zone: recover exposure down towards 0
+      if (_riskExposure > 0 && deltaSeconds > 0) {
+        final deltaHours = deltaSeconds / 3600.0;
+        final recover = _recoveryPerHour * deltaHours;
+        final newExposure =
+            (_riskExposure - recover).clamp(0.0, double.infinity);
+        if (newExposure != _riskExposure) {
+          _riskExposure = newExposure;
+          await _persistExposure();
+        }
+      }
+      _emit();
+    }
   }
 
   // Finalize any active sessions by accumulating exposure up to [endTime] (or now)
@@ -140,6 +196,13 @@ class RiskScoreService {
         _riskExposure += _weightFor(session.severity) * hours;
         await _persistExposure();
       }
+      // Set recovery rate to match the rate of the hazard just exited
+      final newRecovery = _weightFor(session.severity).toDouble();
+      if (newRecovery != _recoveryPerHour) {
+        _recoveryPerHour = newRecovery;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble(_kPrefRecovery, _recoveryPerHour);
+      }
       await _persistActive();
       _emit();
     }
@@ -148,18 +211,20 @@ class RiskScoreService {
   int _weightFor(HazardSeverity s) {
     switch (s) {
       case HazardSeverity.mild:
-        return 100;
+        return 10;
       case HazardSeverity.moderate:
-        return 500;
+        return 50;
       case HazardSeverity.severe:
-        return 1000;
+        return 100;
     }
   }
 
   Map<String, dynamic> snapshot() {
-    final score = _computeSafetyScore(_riskExposure, _factor);
+    final effectiveExposure = _effectiveExposureNow();
+    final score = _computeSafetyScore(effectiveExposure, _factor);
     return {
-      'riskExposure': _riskExposure,
+      'riskExposure': effectiveExposure,
+      'persistedExposure': _riskExposure,
       'safetyScore': score.item1,
       'category': score.item2,
       'factor': _factor,
@@ -182,9 +247,10 @@ class RiskScoreService {
   }
 
   void _emit() {
-    final pair = _computeSafetyScore(_riskExposure, _factor);
+    final effectiveExposure = _effectiveExposureNow();
+    final pair = _computeSafetyScore(effectiveExposure, _factor);
     _controller.add(RiskScoreUpdate(
-      riskExposure: _riskExposure,
+      riskExposure: effectiveExposure,
       safetyScore: pair.item1,
       category: pair.item2,
     ));
@@ -212,4 +278,20 @@ class _Pair {
   final double item1;
   final String item2;
   _Pair(this.item1, this.item2);
+}
+
+extension on RiskScoreService {
+  double _effectiveExposureNow() {
+    if (_active.isEmpty) return _riskExposure;
+    final now = DateTime.now();
+    double extra = 0.0;
+    for (final s in _active.values) {
+      final seconds = now.difference(s.start).inSeconds;
+      if (seconds > 0) {
+        final hours = seconds / 3600.0;
+        extra += _weightFor(s.severity) * hours;
+      }
+    }
+    return _riskExposure + extra;
+  }
 }

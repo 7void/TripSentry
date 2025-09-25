@@ -38,8 +38,8 @@ const List<HazardZone> hazardZones = [
   // Severe (Red)
   HazardZone(
     id: 'hz_severe_1',
-    center: LatLng(12.843, 80.1525),
-    radiusMeters: 100,
+    center: LatLng(12.844422732442604, 80.15258905201247),
+    radiusMeters: 50,
     severity: HazardSeverity.severe,
   ),
 ];

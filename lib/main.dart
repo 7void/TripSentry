@@ -26,6 +26,7 @@ import 'services/voice_assistant_service.dart';
 import 'services/chat_session_service.dart';
 import 'services/geofence_background_service.dart';
 import 'l10n/app_localizations.dart';
+import 'services/risk_score_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,8 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   LocationService().init();
+  // Start risk scoring ticker regardless of auth state, so safe-zone recovery runs.
+  await RiskScoreService.instance.init();
   await GeofenceBackgroundService.instance.init();
   runApp(const MyApp());
 }
