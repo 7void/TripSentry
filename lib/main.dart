@@ -30,6 +30,7 @@ import 'services/chat_session_service.dart';
 import 'services/geofence_background_service.dart';
 import 'services/group_alert_listener.dart';
 import 'l10n/app_localizations.dart';
+import 'theme/app_theme.dart';
 import 'services/risk_score_service.dart';
 
 Future<void> main() async {
@@ -372,20 +373,8 @@ class _MyAppState extends State<MyApp> {
         locale: lp.locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue, brightness: Brightness.light),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              foregroundColor: Colors.black),
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue, brightness: Brightness.dark),
-          useMaterial3: true,
-        ),
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
         home: const SplashScreen(),
         builder: (context, child) => child ?? const SizedBox.shrink(),
         routes: {

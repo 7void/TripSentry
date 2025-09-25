@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/location_service_helper.dart';
 import '../services/user_service.dart';
-import '../utils/permission_utils.dart'; // ✅ added import
+import '../utils/permission_utils.dart';
 import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
@@ -24,9 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (granted) {
         await LocationServiceHelper.startServiceIfAllowed();
       }
-    } catch (_) {
-      // Swallow errors to avoid blocking login UX
-    }
+    } catch (_) {}
   }
 
   Future<void> _signIn() async {
@@ -40,14 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Ensure Firestore has blockchainId field for this user (non-blocking for UX)
-      // ignore: discarded_futures
       UserService.ensureBlockchainIdOnLogin();
       if (!mounted) return;
-      // Navigate immediately — don't block on permissions/service start
       Navigator.of(context).pushReplacementNamed('/home');
-      // Kick off tracking initialization in background
-      // ignore: discarded_futures
       _initTracking();
     } on FirebaseAuthException catch (e) {
       setState(() {
@@ -69,49 +62,130 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-              keyboardType: TextInputType.emailAddress,
+      body: Stack(
+        children: [
+          // Background image
+          SizedBox.expand(
+            child: Image.asset(
+              "assets/images/background.jpg", // ✅ put your uploaded image here
+              fit: BoxFit.cover,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _signIn,
-                child: _loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Sign In'),
+          ),
+
+          // Semi-transparent dark overlay
+          Container(color: Colors.black.withOpacity(0.3)),
+
+          // Centered login card
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 30),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Login",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Email
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      hintText: "Email",
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Password
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      hintText: "Password",
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (_error != null)
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  const SizedBox(height: 10),
+
+                  // Sign in button
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.85),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 80,
+                        vertical: 15,
+                      ),
+                    ),
+                    onPressed: _loading ? null : _signIn,
+                    child: _loading
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text("Sign In"),
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Register link
+                  GestureDetector(
+                    onTap: _loading
+                        ? null
+                        : () => Navigator.of(context)
+                            .pushReplacementNamed('/register'),
+                    child: const Text(
+                      "Don’t have an account? Register",
+                      style: TextStyle(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: _loading
-                  ? null
-                  : () =>
-                      Navigator.of(context).pushReplacementNamed('/register'),
-              child: const Text("Don't have an account? Register"),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

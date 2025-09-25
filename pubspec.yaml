@@ -77,4 +77,6 @@ flutter:
     - assets/
     - assets/contracts/
     - assets/wakewords/hey_sentry.ppn
+    - assets/images/
+    - assets/images/background.jpg
     - .env
