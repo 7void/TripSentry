@@ -32,6 +32,7 @@ import 'services/group_alert_listener.dart';
 import 'l10n/app_localizations.dart';
 import 'theme/app_theme.dart';
 import 'services/risk_score_service.dart';
+import 'screens/health_debug_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -389,6 +390,8 @@ class _MyAppState extends State<MyApp> {
           '/test-map': (context) => const TestMapScreen(),
           '/chat': (context) => const ChatScreen(),
           '/emergency': (context) => const EmergencyCountdownScreen(),
+          // Developer utility screen for testing Health Connect/HealthKit
+          '/health-debug': (context) => const HealthDebugScreen(),
           '/groups': (context) => const GroupListScreen(),
           '/groupChat': (context) {
             final id = ModalRoute.of(context)?.settings.arguments as String?;

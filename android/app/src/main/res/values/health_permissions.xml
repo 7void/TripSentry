@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- Titles for permission rationale entries (placeholder content) -->
+	<string-array name="health_permission_titles">
+		<item>Steps</item>
+		<item>Heart rate</item>
+		<item>Blood glucose</item>
+		<item>Workouts</item>
+	</string-array>
+	<!-- Descriptions for permission rationale entries (placeholder content) -->
+	<string-array name="health_permission_descriptions">
+		<item>Allow reading and writing your step count</item>
+		<item>Allow reading your heart rate data</item>
+		<item>Allow reading and writing your blood glucose</item>
+		<item>Allow reading and writing your workout sessions</item>
+	</string-array>
+</resources>

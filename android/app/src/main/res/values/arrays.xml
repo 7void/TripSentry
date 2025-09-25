@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- Placeholder array to satisfy resource merger; add entries if needed by features. -->
+	<string-array name="empty_array">
+		<item>placeholder</item>
+	</string-array>
+</resources>

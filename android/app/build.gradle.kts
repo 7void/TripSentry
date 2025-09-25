@@ -23,8 +23,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.touristapp"
-        // ✅ Maps plugin requires minSdk 21
-        minSdk = flutter.minSdkVersion
+    // Health Connect requires minSdk 26
+    minSdk = maxOf(26, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/location_service_helper.dart';
 import '../utils/permission_utils.dart'; // ✅ added import
+import '../services/auth_service.dart';
+import '../services/health_connect_service.dart';
+import '../services/health_sync_service.dart';
 import 'dart:async';
 
 class RegisterScreen extends StatefulWidget {
@@ -25,6 +28,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (granted) {
         await LocationServiceHelper.startServiceIfAllowed();
       }
+      // Best-effort Health init and quick sync
+      try {
+        await HealthConnectService.instance.configure();
+        await HealthConnectService.instance.requestPlatformPermissions();
+        // ignore: unused_result
+        await HealthConnectService.instance.requestHealthPermissions(
+          withBackground: true,
+        );
+        // ignore: discarded_futures
+        HealthConnectService.instance.syncLatestHeartRate();
+      } catch (_) {}
     } catch (_) {
       // Swallow to not impact UX
     }
@@ -72,10 +86,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Start tracking in background after navigation
       // ignore: discarded_futures
       _initTracking();
+  // Start 1-minute health sync loop
+  // ignore: discarded_futures
+  HealthSyncService.instance.start(interval: const Duration(seconds: 10));
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
       setState(() => _error = 'Registration failed: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _registerWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final user = await AuthService.signInWithGoogle();
+      if (user == null) {
+        // user cancelled
+        return;
+      }
+
+      // If this is a new user, optionally create a user doc with defaults
+      // Firestore security rules should allow this via backend if needed
+      // Here we keep it simple and just navigate
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/home');
+      // Start tracking in background after navigation
+      // ignore: discarded_futures
+      _initTracking();
+  // Start 1-minute health sync loop
+  // ignore: discarded_futures
+  HealthSyncService.instance.start(interval: const Duration(seconds: 10));
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = e.message);
+    } catch (e) {
+      setState(() => _error = 'Google sign-up failed: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
