@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
 import '../services/location_service_helper.dart'; // ✅ native service helper
@@ -9,8 +8,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'qr_checkin_screen.dart';
 import '../l10n/app_localizations.dart';
-import '../providers/locale_provider.dart';
-import '../services/health_sync_service.dart';
+// locale switcher and old menu removed in redesign
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart' as geo;
+import '../services/hazard_zones.dart';
 
 const _kTrackingPrefKey = 'tracking_enabled';
 
@@ -33,6 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _trackingPrefLoaded =
       false; // ensures we don't auto-start before loading pref
 
+  // Center for the non-interactive map preview
+  LatLng? _previewCenter;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +45,9 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bootstrapTrackingPermissions();
       _refreshPermissionState();
+      // Try to fetch a quick current location for the preview
+      // ignore: discarded_futures
+      _updatePreviewToCurrent();
     });
   }
 
@@ -117,6 +124,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     // Attempt to start tracking if permissions sufficient
     _ensureServiceStarted();
+    // Update preview center once we have permission
+    if (fg) {
+      // ignore: discarded_futures
+      _updatePreviewToCurrent();
+    }
   }
 
   Future<void> _requestFromBanner() async {
@@ -149,6 +161,22 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
     await _refreshPermissionState();
+  }
+
+  Future<void> _updatePreviewToCurrent() async {
+    try {
+      if (!_hasForeground) return;
+      if (!await geo.Geolocator.isLocationServiceEnabled()) return;
+      final pos = await geo.Geolocator.getCurrentPosition(
+        desiredAccuracy: geo.LocationAccuracy.low,
+      );
+      if (!mounted) return;
+      setState(() {
+        _previewCenter = LatLng(pos.latitude, pos.longitude);
+      });
+    } catch (_) {
+      // ignore failures; fallback center will be used
+    }
   }
 
   void _ensureServiceStarted() {
@@ -228,47 +256,32 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-  title: Text(AppLocalizations.of(context).appNameShort),
+        title: Text(AppLocalizations.of(context).appNameShort),
         actions: [
-          _buildLanguageSwitcher(context),
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleMenuAction(context, value),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'refresh',
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh),
-                    SizedBox(width: 8),
-                    Text(AppLocalizations.of(context).menuRefresh),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'clear_data',
-                child: Row(
-                  children: [
-                    const Icon(Icons.delete_forever, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text(
-                      AppLocalizations.of(context).menuClearData,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout),
-                    SizedBox(width: 8),
-                    Text(AppLocalizations.of(context).menuLogout),
-                  ],
-                ),
-              ),
-            ],
+          // Notification bell (placeholder)
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {},
+            tooltip: 'Notifications',
           ),
+          // Profile button -> View ID (or prompt to create)
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.account_circle_outlined),
+              tooltip: AppLocalizations.of(context).viewId,
+              onPressed: () {
+                final bp = Provider.of<BlockchainProvider>(ctx, listen: false);
+                if (bp.hasActiveTouristID) {
+                  Navigator.of(ctx).pushNamed('/tourist-id-details');
+                } else {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Create a Tourist ID first')),
+                  );
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Consumer<BlockchainProvider>(
@@ -288,6 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Tracking chip (back to original position, above map)
                   if (_showTrackingChip && _hasForeground)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -302,9 +316,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: Colors.white,
                           ),
                           label: Text(
-              _isTracking
-                ? AppLocalizations.of(context).trackingActive
-                : AppLocalizations.of(context).trackingPaused,
+                            _isTracking
+                                ? AppLocalizations.of(context).trackingActive
+                                : AppLocalizations.of(context).trackingPaused,
                             style: const TextStyle(color: Colors.white),
                           ),
                           backgroundColor: _isTracking
@@ -316,13 +330,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+                  // Map preview
+                  _buildMapPreview(context),
+                  const SizedBox(height: 12),
                   if (!_dismissedBanner &&
                       !_checkingPerms &&
                       (!_hasForeground || !_hasBackground))
                     _buildPermissionBanner(),
+                  // Tourist ID section card
                   _buildTouristIDSection(context, blockchainProvider),
                   const SizedBox(height: 16),
-                  _buildQuickActions(context, blockchainProvider),
+                  // QR + SOS buttons row
+                  _buildQrAndSosRow(context, blockchainProvider),
                   if (blockchainProvider.hasError) ...[
                     const SizedBox(height: 16),
                     _buildErrorCard(context, blockchainProvider),
@@ -333,9 +352,174 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).pushNamed('/chat'),
-        child: const Icon(Icons.chat),
+      // Bottom navigation (Home, Groups, Chat)
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        onTap: (idx) {
+          if (idx == 1) {
+            Navigator.of(context).pushNamed('/groups');
+          } else if (idx == 2) {
+            Navigator.of(context).pushNamed('/chat');
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Groups'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+        ],
+      ),
+    );
+  }
+
+  // Map preview widget matching the mid-card look; tap to open full map
+  Widget _buildMapPreview(BuildContext context) {
+    final previewPos = _previewCenter ??
+        const LatLng(40.6602, -73.9690); // fallback: Prospect Park area
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Stack(
+        children: [
+          // Non-interactive map for preview
+          SizedBox(
+            height: 280,
+            width: double.infinity,
+            child: IgnorePointer(
+              child: GoogleMap(
+                key: ValueKey(
+                  'preview-${previewPos.latitude.toStringAsFixed(5)},${previewPos.longitude.toStringAsFixed(5)}',
+                ),
+                initialCameraPosition:
+                    CameraPosition(target: previewPos, zoom: 13.5),
+                myLocationEnabled: false,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                rotateGesturesEnabled: false,
+                scrollGesturesEnabled: false,
+                tiltGesturesEnabled: false,
+                zoomGesturesEnabled: false,
+                markers: {
+                  Marker(
+                    markerId: const MarkerId('preview'),
+                    position: previewPos,
+                  )
+                },
+                circles: _previewCircles(),
+              ),
+            ),
+          ),
+          // Full overlay to capture taps (platform view safe)
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => Navigator.of(context).pushNamed('/geo-fencing'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Set<Circle> _previewCircles() {
+    final Set<Circle> circles = {};
+    for (final hz in hazardZones) {
+      Color color;
+      switch (hz.severity) {
+        case HazardSeverity.mild:
+          color = Colors.yellow;
+          break;
+        case HazardSeverity.moderate:
+          color = Colors.orange;
+          break;
+        case HazardSeverity.severe:
+          color = Colors.red;
+          break;
+      }
+      circles.add(
+        Circle(
+          circleId: CircleId('preview_${hz.id}'),
+          center: hz.center,
+          radius: hz.radiusMeters.toDouble(),
+          fillColor: color.withOpacity(0.25),
+          strokeColor: color,
+          strokeWidth: 2,
+        ),
+      );
+    }
+    return circles;
+  }
+
+  // Row with QR Check-In and SOS buttons matching pill design
+  Widget _buildQrAndSosRow(
+      BuildContext context, BlockchainProvider blockchainProvider) {
+    return Row(
+      children: [
+        Expanded(
+          child: _pillButton(
+            context,
+            icon: Icons.qr_code_scanner,
+            label: AppLocalizations.of(context).qrCheckIn,
+            background: Theme.of(context).colorScheme.surfaceVariant,
+            foreground: Theme.of(context).colorScheme.onSurfaceVariant,
+            onPressed: () {
+              final record = blockchainProvider.touristRecord;
+              final cid = record?.metadataCID;
+              if (cid == null || cid.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        AppLocalizations.of(context).snackNoMetadata),
+                  ),
+                );
+                return;
+              }
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => QrCheckinScreen(cid: cid),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _pillButton(
+            context,
+            icon: null,
+            label: 'SOS',
+            background: Colors.red.shade600,
+            foreground: Colors.white,
+            onPressed: () => Navigator.of(context).pushNamed('/emergency'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _pillButton(BuildContext context,
+    {IconData? icon,
+      required String label,
+      required Color background,
+      required Color foreground,
+      required VoidCallback onPressed}) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: background,
+        foregroundColor: foreground,
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (icon != null) ...[
+            Icon(icon),
+            const SizedBox(width: 8),
+          ],
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -547,118 +731,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActions(
-      BuildContext context, BlockchainProvider blockchainProvider) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppLocalizations.of(context).quickActions,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.qr_code_scanner,
-                    AppLocalizations.of(context).qrCheckIn,
-                    () {
-                      final record = blockchainProvider.touristRecord;
-                      final cid = record?.metadataCID;
-                      if (cid == null || cid.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(AppLocalizations.of(context).snackNoMetadata),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => QrCheckinScreen(cid: cid),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.emergency,
-                    AppLocalizations.of(context).emergency,
-                    () => Navigator.of(context).pushNamed('/emergency'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.group,
-                    'Groups',
-                    () => Navigator.of(context).pushNamed('/groups'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.location_on,
-                    AppLocalizations.of(context).checkIn,
-                    () => _showComingSoon(context),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.my_location,
-                    AppLocalizations.of(context).geoLocation,
-                    () => Navigator.of(context).pushNamed('/geo-fencing'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Removed duplicate Emergency and AI Chat row per request
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(BuildContext context, IconData icon, String label,
-      VoidCallback onPressed) {
-    return OutlinedButton(
-      onPressed: onPressed,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon),
-            const SizedBox(height: 4),
-            Text(label),
-          ],
-        ),
-      ),
-    );
-  }
+  // Legacy quick actions removed in redesign
 
   Widget _buildErrorCard(
       BuildContext context, BlockchainProvider blockchainProvider) {
@@ -726,62 +799,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  Future<void> _handleMenuAction(BuildContext context, String action) async {
-    final blockchainProvider =
-        Provider.of<BlockchainProvider>(context, listen: false);
+  // Legacy menu actions removed in redesign
 
-    switch (action) {
-      case 'refresh':
-        _checkTouristIDStatus();
-        break;
-      case 'clear_data':
-        _showClearDataDialog(context, blockchainProvider);
-        break;
-      case 'logout':
-        try {
-          await FirebaseAuth.instance.signOut();
-          await LocationServiceHelper.stopService();
-          // Stop 1-minute health sync loop on logout
-          try {
-            // ignore: discarded_futures
-            HealthSyncService.instance.stop();
-          } catch (_) {}
-        } finally {
-          if (context.mounted) {
-            Navigator.of(context).pushReplacementNamed('/login');
-          }
-        }
-        break;
-    }
-  }
-
-  void _showClearDataDialog(
-      BuildContext context, BlockchainProvider blockchainProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-  title: Text(AppLocalizations.of(context).menuClearDataConfirmTitle),
-  content: Text(AppLocalizations.of(context).menuClearDataConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppLocalizations.of(context).cancel),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await blockchainProvider.clearWallet();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacementNamed('/home');
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context).delete),
-          ),
-        ],
-      ),
-    );
-  }
+  // Clear data dialog was used by old menu; removed in redesign
 
   void _deleteExpiredID(
       BuildContext context, BlockchainProvider blockchainProvider) {
@@ -818,66 +838,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context).snackFeatureComingSoon),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
+  // Coming soon snackbar helper removed in redesign
 
-  Widget _buildLanguageSwitcher(BuildContext context) {
-  final l10n = AppLocalizations.of(context);
-    final current = Localizations.localeOf(context);
-    String code = current.languageCode;
-  if (!['en', 'hi', 'bn', 'ta', 'te', 'ml'].contains(code)) code = 'en';
-    return Padding(
-      padding: const EdgeInsets.only(right: 4.0),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: code,
-          icon: const Icon(Icons.language),
-          items: [
-            DropdownMenuItem(value: 'en', child: Text(l10n.langEnglish)),
-            DropdownMenuItem(value: 'hi', child: Text(l10n.langHindi)),
-            DropdownMenuItem(value: 'bn', child: Text(l10n.langBengali)),
-            DropdownMenuItem(value: 'ta', child: Text(l10n.langTamil)),
-            DropdownMenuItem(value: 'te', child: Text(l10n.langTelugu)),
-            DropdownMenuItem(value: 'ml', child: Text(l10n.langMalayalam)),
-          ],
-          onChanged: (val) {
-            if (val == null) return;
-            Locale? newLocale;
-            switch (val) {
-              case 'en':
-                newLocale = const Locale('en');
-                break;
-              case 'hi':
-                newLocale = const Locale('hi');
-                break;
-              case 'bn':
-                newLocale = const Locale('bn');
-                break;
-              case 'ta':
-                newLocale = const Locale('ta');
-                break;
-              case 'te':
-                newLocale = const Locale('te');
-                break;
-              case 'ml':
-                newLocale = const Locale('ml');
-                break;
-            }
-            if (newLocale != null) {
-              // update via provider set at top level
-              try {
-                context.read<LocaleProvider>().setLocale(newLocale);
-              } catch (_) {}
-            }
-          },
-        ),
-      ),
-    );
-  }
+  // Language switcher removed from AppBar in redesign
 }
