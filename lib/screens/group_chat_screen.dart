@@ -12,11 +12,23 @@ class GroupChatScreen extends StatefulWidget {
 
 class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final gs = GroupService.instance;
-    final myUid = FirebaseAuth.instance.currentUser?.uid;
+  final gs = GroupService.instance;
+  final myUid = FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Group Chat'),
@@ -25,7 +37,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             tooltip: 'Share Group QR',
             icon: const Icon(Icons.qr_code),
             onPressed: () async {
-              // try to fetch group name minimal from users-index cache if available via route args is minimal; fallback empty
               final name = '';
               if (!mounted) return;
               Navigator.of(context).pushNamed('/groupInviteQr', arguments: {
@@ -53,48 +64,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final msgs = snap.data!;
+                // Auto-scroll to bottom on new data
+                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
                 return ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                   itemCount: msgs.length,
                   itemBuilder: (context, i) {
                     final m = msgs[i];
                     final isMine = myUid != null && m['senderUid'] == myUid;
-                    final bubbleColor = isMine
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.grey.shade300;
-                    final textColor = isMine ? Colors.white : Colors.black;
+                    final text = (m['text'] ?? '').toString();
                     final sender = (m['senderName'] ?? m['senderUid'] ?? '').toString();
-                    return Align(
-                      alignment:
-                          isMine ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: bubbleColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!isMine)
-                              Text(
-                                sender,
-                                style: TextStyle(
-                                  color: textColor.withOpacity(0.9),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            if (!isMine) const SizedBox(height: 2),
-                            Text(
-                              (m['text'] ?? '').toString(),
-                              style: TextStyle(color: textColor),
-                            ),
-                          ],
-                        ),
-                      ),
+                    return _ChatBubble(
+                      isMine: isMine,
+                      sender: sender,
+                      text: text,
                     );
                   },
                 );
@@ -102,33 +86,121 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
           ),
           SafeArea(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: TextField(
-                      controller: _controller,
-                      decoration: const InputDecoration(
-                        hintText: 'Message',
-                        border: OutlineInputBorder(),
-                      ),
+            top: false,
+            child: _InputBar(
+              controller: _controller,
+              onSend: (text) async {
+                final t = text.trim();
+                if (t.isEmpty) return;
+                await gs.sendMessage(widget.groupId, t);
+                if (!mounted) return;
+                _controller.clear();
+                _scrollToBottom();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatBubble extends StatelessWidget {
+  final bool isMine;
+  final String sender;
+  final String text;
+  const _ChatBubble({required this.isMine, required this.sender, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bg = isMine ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest;
+    final fg = isMine ? Colors.white : theme.colorScheme.onSurface;
+    final align = isMine ? Alignment.centerRight : Alignment.centerLeft;
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(16),
+      topRight: const Radius.circular(16),
+      bottomLeft: Radius.circular(isMine ? 16 : 4),
+      bottomRight: Radius.circular(isMine ? 4 : 16),
+    );
+    return Align(
+      alignment: align,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: radius,
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isMine)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    sender,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: fg.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: () async {
-                    final text = _controller.text.trim();
-                    if (text.isEmpty) return;
-                    await gs.sendMessage(widget.groupId, text);
-                    if (!mounted) return;
-                    _controller.clear();
-                  },
-                )
-              ],
+              Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: fg)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InputBar extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onSend;
+  const _InputBar({required this.controller, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              child: TextField(
+                controller: controller,
+                minLines: 1,
+                maxLines: 4,
+                textInputAction: TextInputAction.newline,
+                decoration: const InputDecoration(
+                  hintText: 'Message',
+                  border: InputBorder.none,
+                ),
+              ),
             ),
-          )
+          ),
+          const SizedBox(width: 6),
+          Material(
+            color: theme.colorScheme.primary,
+            shape: const CircleBorder(),
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.white),
+              onPressed: () => onSend(controller.text),
+            ),
+          ),
         ],
       ),
     );
